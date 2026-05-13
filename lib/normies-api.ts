@@ -46,8 +46,25 @@ export const fetchBurnsForAddress = (address: string, limit = 50) =>
 export const fetchBurnCommit = (commitId: string) =>
   get<BurnCommit>(`/history/burns/${commitId}`, 300);
 
-export const fetchBurnedTokens = (limit = 2000, offset = 0) =>
+export const fetchBurnedTokens = (limit = 100, offset = 0) =>
   get<BurnedTokenInfo[]>(`/history/burned-tokens?limit=${limit}&offset=${offset}`, 300);
+
+/** The upstream endpoint caps each page at 100 items regardless of the requested
+ *  limit — walk the offsets and concatenate until the API returns short. The result
+ *  is served from /api/burned-tokens with a long edge-cache so this only hits the
+ *  upstream every ~5 min. */
+export async function fetchAllBurnedTokens(): Promise<BurnedTokenInfo[]> {
+  const PAGE = 100;
+  const all: BurnedTokenInfo[] = [];
+  for (let offset = 0; ; offset += PAGE) {
+    const page = await fetchBurnedTokens(PAGE, offset);
+    all.push(...page);
+    if (page.length < PAGE) break;
+    // Defensive cap to avoid runaway loops if the API ever misbehaves.
+    if (offset > 20000) break;
+  }
+  return all;
+}
 export const fetchBurnedToken = (tokenId: number) =>
   get<BurnedTokenInfo>(`/history/burned/${tokenId}`, 300);
 
