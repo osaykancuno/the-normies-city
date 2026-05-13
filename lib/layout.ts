@@ -58,7 +58,6 @@ const SPIRAL_BASE_RADIUS = 280;
 const SPIRAL_GROWTH = 30;
 /** Outer city limit — used to size the ground, fog and horizon. */
 export const CITY_OUTER_RADIUS = 2200;
-const GRAVEYARD_RADIUS = CITY_OUTER_RADIUS - 80; // hugs the city perimeter rather than sitting far outside.
 
 /**
  * Architectural tiers based on portfolio size. Each tier has a distinct silhouette so
@@ -167,22 +166,10 @@ export function computeLayout({ holders, burned }: LayoutInput): {
     buildingsByAddress.set(address, b);
   });
 
-  // Graveyard: a ring of small tombstones for each burned tokenId.
-  for (const tokenId of burned) {
-    const angle = (tokenId / 10000) * Math.PI * 2;
-    const radius = GRAVEYARD_RADIUS + ((tokenId * 37) % 700);
-    buildings.push({
-      kind: "burned",
-      tokenId,
-      x: Math.cos(angle) * radius,
-      y: 9,
-      z: Math.sin(angle) * radius,
-      height: 18,
-      footprint: 22,
-      glow: 0,
-      cellSize: 16,
-    });
-  }
+  // Burned tokens used to render as small tombstones in a ring around the city, but
+  // they're now omitted entirely — the city only shows living holders. The burned set
+  // is still tracked so transfer/burn dynamics keep working (a holder losing their
+  // last live token still collapses their building).
 
   return { buildings, buildingsByAddress, burnedSet: burned };
 }
