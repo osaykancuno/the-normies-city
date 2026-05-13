@@ -25,6 +25,7 @@ export default function InstancedNormies() {
   const setFlyTo = useCity((s) => s.setFlyTo);
   const setHovered = useCity((s) => s.setHovered);
   const hoveredIndex = useCity((s) => s.hoveredIndex);
+  const selection = useCity((s) => s.selection);
 
   const fallback = useMemo(makeFallbackTexture, []);
   const tokenIdsTexRef = useRef<THREE.DataTexture | null>(null);
@@ -58,6 +59,7 @@ export default function InstancedNormies() {
         uCellUv: { value: ATLAS_CELL_UV },
         uTime: { value: 0 },
         uHoveredIndex: { value: -1 },
+        uSelectedIndex: { value: -1 },
         uTokenIdsTex: { value: fallback }, // will be replaced when buildings change
         uTokenIdsTexSize: { value: 1 },
       },
@@ -164,12 +166,64 @@ export default function InstancedNormies() {
   useFrame(() => {
     material.uniforms.uTime.value = Date.now() / 1000;
     material.uniforms.uHoveredIndex.value = hoveredIndex ?? -1;
+
+    // Find the instance index of the currently selected building so the shader can
+    // ghost out every other tower and let the selected one read through occluders.
+    let selIdx = -1;
+    if (selection?.kind === "holder") {
+      const addr = selection.address;
+      for (let i = 0; i < buildings.length; i++) {
+        const b = buildings[i];
+        if (b.kind === "holder" && b.address === addr) {
+          selIdx = i;
+          break;
+        }
+      }
+    } else if (selection?.kind === "normie") {
+      const tid = selection.tokenId;
+      for (let i = 0; i < buildings.length; i++) {
+        const b = buildings[i];
+        if (b.kind === "holder" && b.tokenIds.indexOf(tid) >= 0) {
+          selIdx = i;
+          break;
+        }
+      }
+    }
+    material.uniforms.uSelectedIndex.value = selIdx;
   });
 
   const handleClick = (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation();
     if (event.instanceId == null) return;
-    const b = buildings[event.instanceId];
+
+    // When a building is selected, prefer it if the ray passes through it even
+    // when it's behind an occluder — this lets the user click their own tower
+    // through the ghosted neighbours.
+    let pickIdx: number = event.instanceId;
+    if (selection?.kind === "holder" || selection?.kind === "normie") {
+      let selIdx = -1;
+      if (selection.kind === "holder") {
+        for (let i = 0; i < buildings.length; i++) {
+          const b = buildings[i];
+          if (b.kind === "holder" && b.address === selection.address) { selIdx = i; break; }
+        }
+      } else {
+        for (let i = 0; i < buildings.length; i++) {
+          const b = buildings[i];
+          if (b.kind === "holder" && b.tokenIds.indexOf(selection.tokenId) >= 0) { selIdx = i; break; }
+        }
+      }
+      if (selIdx >= 0 && event.intersections) {
+        for (const hit of event.intersections) {
+          if (hit.instanceId === selIdx) {
+            pickIdx = selIdx;
+            break;
+          }
+        }
+      }
+    }
+
+    const b = buildings[pickIdx];
     if (!b) return;
     if (b.kind === "holder") {
       setSelection({ kind: "holder", address: b.address });
@@ -271,6 +325,7 @@ uniform float uTokenIdsTexSize;
 uniform float uCellUv;
 uniform float uTime;
 uniform float uHoveredIndex;
+uniform float uSelectedIndex;
 
 varying vec3  vNormalW;
 varying vec2  vUv;
@@ -316,6 +371,21 @@ vec3 sampleNormie(float tokenId, vec2 cellUv, float shade) {
 }
 
 void main() {
+  // ── See-through occluders ──
+  // When a building is selected (via click or search), every OTHER tower is
+  // rendered as a sparse dithered ghost so the selection reads cleanly even when
+  // it's surrounded by taller neighbours. Discarding fragments here means we
+  // don't write to the depth buffer for those pixels, so the selected building
+  // becomes visible through them.
+  bool selectionActive = uSelectedIndex >= 0.0;
+  bool isSelected = selectionActive && abs(vIndex - uSelectedIndex) < 0.5;
+  if (selectionActive && !isSelected) {
+    // 4x4 Bayer-like dither — keep only ~1/8 of pixels for the occluders.
+    vec2 sp = floor(mod(gl_FragCoord.xy, 4.0));
+    float pat = sp.x + sp.y * 4.0;
+    if (pat != 0.0 && pat != 5.0) discard;
+  }
+
   vec3 color;
   vec3 absN = abs(vNormalW);
   bool isFront = vNormalW.z >  0.5;
@@ -344,8 +414,8 @@ void main() {
       vec2 cellIdx = vec2(floor(relX / cellSize), floor(worldFace.y / cellSize));
       vec2 cellUv  = vec2(fract(relX / cellSize), fract(worldFace.y / cellSize));
 
-      // Bottom-up reading order: ground-floor first.
-      float linearIdx = cellIdx.y * gridCols + cellIdx.x;
+      // Top-down reading order: top row first, leaving any unused cells at the bottom.
+      float linearIdx = (gridRows - 1.0 - cellIdx.y) * gridCols + cellIdx.x;
 
       if (cellIdx.y >= gridRows || linearIdx >= vTokensCount) {
         // Empty upper floors / overflow — wall.
