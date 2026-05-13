@@ -86,10 +86,19 @@ export default function ActivityEffects() {
     []
   );
 
+  // ── Spawn new effects ──
+  // Cap the active set hard at 12 — beyond that the scene is unreadable. Also skip
+  // events that are already "old" (>4 s since they landed in the activity feed): when
+  // the page first opens we receive a backlog from /api/burns and /api/transfers, and
+  // without this guard the entire backlog would explode visually all at once.
+  const SPAWN_MAX_AGE_MS = 4_000;
+  const MAX_LIVE_EFFECTS = 12;
+  const nowMs = Date.now();
   for (const ev of activity) {
     const key = eventKey(ev);
     if (seenRef.current.has(key)) continue;
     seenRef.current.add(key);
+    if (nowMs - ev.receivedAt > SPAWN_MAX_AGE_MS) continue;
 
     if (ev.kind === "transfer") {
       // Movement arc: from sender's holder building → receiver's holder building.
@@ -130,28 +139,67 @@ export default function ActivityEffects() {
         bornAt: performance.now() / 1000,
       });
     }
-    if (effectsRef.current.length > 40) effectsRef.current.shift();
+    if (effectsRef.current.length > MAX_LIVE_EFFECTS) effectsRef.current.shift();
   }
 
-  useFrame(({ clock }) => {
-    const now = clock.elapsedTime;
-    effectsRef.current = effectsRef.current.filter((e) => now - e.bornAt < LIFETIME);
+  // Stable index so each Effect keeps the same scene-graph child across frames. Without
+  // this the previous code popped the LAST child when any (potentially middle) effect
+  // expired, leaving the wrong mesh animating for the wrong event and producing
+  // stuck wireframe artefacts.
+  const meshKeysRef = useRef<symbol[]>([]);
+  const effectKeysRef = useRef<symbol[]>([]);
+
+  useFrame(() => {
+    // Same monotonic timebase used for `bornAt` (performance.now is consistent across
+    // the page lifetime and immune to wall-clock jumps).
+    const nowSec = performance.now() / 1000;
+
+    // Drop expired effects (and their stable keys in lockstep).
+    const fresh: Effect[] = [];
+    const freshKeys: symbol[] = [];
+    for (let i = 0; i < effectsRef.current.length; i++) {
+      const e = effectsRef.current[i];
+      if (nowSec - e.bornAt < LIFETIME) {
+        fresh.push(e);
+        freshKeys.push(effectKeysRef.current[i] ?? Symbol());
+      }
+    }
+    // Assign keys to any newly-added effects that don't have one yet.
+    while (freshKeys.length < fresh.length) freshKeys.push(Symbol());
+    effectsRef.current = fresh;
+    effectKeysRef.current = freshKeys;
+
     const group = groupRef.current;
     if (!group) return;
 
-    while (group.children.length > effectsRef.current.length) {
-      const sub = group.children.pop() as THREE.Group | undefined;
-      if (sub) disposeGroup(sub);
+    // Drop scene-graph children whose key no longer appears in the fresh keys.
+    const aliveKeySet = new Set(effectKeysRef.current);
+    for (let i = group.children.length - 1; i >= 0; i--) {
+      if (!aliveKeySet.has(meshKeysRef.current[i])) {
+        const sub = group.children[i] as THREE.Group;
+        disposeGroup(sub); // removes from parent
+        meshKeysRef.current.splice(i, 1);
+      }
     }
-    while (group.children.length < effectsRef.current.length) {
-      const idx = group.children.length;
-      const e = effectsRef.current[idx];
-      group.add(buildEffectGroup(e, geom));
+    // Add children for any effect key that doesn't yet have a mesh.
+    const meshKeySet = new Set(meshKeysRef.current);
+    for (let i = 0; i < effectsRef.current.length; i++) {
+      const k = effectKeysRef.current[i];
+      if (meshKeySet.has(k)) continue;
+      const sub = buildEffectGroup(effectsRef.current[i], geom);
+      group.add(sub);
+      meshKeysRef.current.push(k);
     }
 
+    // Animate by lookup: pair each effect with the child that has its key.
+    const keyToChild = new Map<symbol, THREE.Group>();
+    for (let i = 0; i < group.children.length; i++) {
+      keyToChild.set(meshKeysRef.current[i], group.children[i] as THREE.Group);
+    }
     effectsRef.current.forEach((e, i) => {
-      const sub = group.children[i] as THREE.Group;
-      const t = (now - e.bornAt) / LIFETIME;
+      const sub = keyToChild.get(effectKeysRef.current[i]);
+      if (!sub) return;
+      const t = (nowSec - e.bornAt) / LIFETIME;
       animateEffect(sub, e, t);
     });
   });

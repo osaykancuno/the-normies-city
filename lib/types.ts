@@ -82,10 +82,11 @@ export interface CanvasDiff {
   [key: string]: unknown;
 }
 
-/** Result of /holders/:address — owner's portfolio. */
+/** Result of /holders/:address — owner's portfolio. The official API returns
+ *  `{ address, tokenIds: string[] }` directly. */
 export interface HolderInfo {
-  owner?: string;
-  tokens?: Array<{ tokenId: string; [k: string]: unknown }>;
+  address?: string;
+  tokenIds?: string[];
   [key: string]: unknown;
 }
 

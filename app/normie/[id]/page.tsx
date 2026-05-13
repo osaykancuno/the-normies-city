@@ -53,8 +53,9 @@ export default async function NormiePage({ params }: PageProps) {
   if (owner) {
     try {
       const holder = await fetchHolder(owner);
-      holderTokens = (holder.tokens ?? [])
-        .map((t) => Number(t.tokenId))
+      // Official API returns `{ address, tokenIds: string[] }` directly.
+      holderTokens = (holder.tokenIds ?? [])
+        .map((id) => Number(id))
         .filter((n) => Number.isFinite(n) && n >= 0 && n <= 9999 && n !== numId)
         .slice(0, 48);
     } catch {}
