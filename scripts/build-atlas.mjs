@@ -9,7 +9,7 @@ import { createCanvas, loadImage } from "canvas";
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { NORMIES_API, TOTAL_NORMIES, rateLimitedFetch, formatEta } from "./_rate-limit.mjs";
+import { NORMIES_API, TOTAL_NORMIES, fetchBurnedSet, rateLimitedFetch, formatEta } from "./_rate-limit.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
@@ -46,9 +46,22 @@ const doneSet = new Set(progress.done);
 const startTime = Date.now();
 let succeeded = doneSet.size;
 let failed = 0;
+let skippedBurned = 0;
+
+console.log("Fetching burned tokens list to skip dead supply…");
+const burnedSet = await fetchBurnedSet();
+console.log(`Burned tokens: ${burnedSet.size}. Live supply: ${TOTAL_NORMIES - burnedSet.size}.`);
 
 for (let id = 0; id < TOTAL_NORMIES; id++) {
   if (doneSet.has(id)) continue;
+  if (burnedSet.has(id)) {
+    // Burned — leave atlas slot blank, mark as processed.
+    doneSet.add(id);
+    progress.done.push(id);
+    succeeded++;
+    skippedBurned++;
+    continue;
+  }
 
   const url = `${NORMIES_API}/normie/${id}/pixels`;
   let pixels;
@@ -90,7 +103,9 @@ for (let id = 0; id < TOTAL_NORMIES; id++) {
 writeAtlas();
 writeAtlasJson();
 writeFileSync(PROGRESS_PATH, JSON.stringify(progress));
-console.log(`\nDone. ${succeeded} succeeded, ${failed} failed. Atlas: ${ATLAS_PATH}`);
+console.log(
+  `\nDone. ${succeeded} succeeded, ${failed} failed, ${skippedBurned} burned skipped. Atlas: ${ATLAS_PATH}`
+);
 
 function drawBitmap(id, pixels) {
   const col = id % COLS;

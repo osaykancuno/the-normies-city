@@ -6,7 +6,7 @@
 import { writeFileSync, readFileSync, existsSync, mkdirSync, unlinkSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { NORMIES_API, TOTAL_NORMIES, rateLimitedFetch, formatEta } from "./_rate-limit.mjs";
+import { NORMIES_API, TOTAL_NORMIES, fetchBurnedSet, rateLimitedFetch, formatEta } from "./_rate-limit.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
@@ -22,11 +22,23 @@ const done = state.done;
 const startTime = Date.now();
 let ok = done.size;
 let fail = 0;
+let skippedBurned = 0;
 
 console.log(`Starting with ${ok}/${TOTAL_NORMIES} already processed.`);
+console.log("Fetching burned tokens list to skip dead supply…");
+const burnedSet = await fetchBurnedSet();
+console.log(`Burned tokens: ${burnedSet.size}. Live supply: ${TOTAL_NORMIES - burnedSet.size}.`);
 
 for (let id = 0; id < TOTAL_NORMIES; id++) {
   if (done.has(id)) continue;
+  if (burnedSet.has(id)) {
+    // Dead supply — no owner to fetch. Mark as processed with null.
+    byToken[id] = null;
+    done.add(id);
+    ok++;
+    skippedBurned++;
+    continue;
+  }
 
   const url = `${NORMIES_API}/normie/${id}/owner`;
   try {
@@ -69,7 +81,7 @@ if (ok === TOTAL_NORMIES && existsSync(PROGRESS_PATH)) {
     unlinkSync(PROGRESS_PATH);
   } catch {}
 }
-console.log(`\nDone. ${ok} ok, ${fail} failed. Output: ${OUT_PATH}`);
+console.log(`\nDone. ${ok} ok, ${fail} failed, ${skippedBurned} burned skipped. Output: ${OUT_PATH}`);
 
 function flushOut() {
   writeFileSync(
