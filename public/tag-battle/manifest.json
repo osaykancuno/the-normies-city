@@ -1,0 +1,17 @@
+{
+  "name": "TAG Battle — Normies Holder Arena",
+  "short_name": "TAG Battle",
+  "description": "Normies turf war. Holders only.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#e3e5e4",
+  "theme_color": "#48494b",
+  "categories": ["games", "social"],
+  "icons": [
+    { "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' fill='%2348494b'/><text x='96' y='130' font-family='Helvetica' font-weight='900' font-size='110' fill='%23e3e5e4' text-anchor='middle'>T</text></svg>", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any maskable" },
+    { "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%2348494b'/><text x='256' y='350' font-family='Helvetica' font-weight='900' font-size='300' fill='%23e3e5e4' text-anchor='middle'>T</text></svg>", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "prefer_related_applications": false
+}

@@ -1,0 +1,2223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=yes">
+<meta name="theme-color" content="#48494b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>TAG Battle — Normies Holder Arena</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%2348494b'/><text x='16' y='22' font-family='Helvetica' font-weight='900' font-size='18' fill='%23e3e5e4' text-anchor='middle'>T</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Permanent+Marker&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* OFFICIAL NORMIES PALETTE — the only colours allowed */
+    --bg:#e3e5e4;--fg:#48494b;--paper:#fff;--border:#d0d2d3;--mid:#6b6d6f;
+    --code:#f4f4f4;--dark:#2d2e30;--shade:#9a9b9d;--ink:#1a1a1c;
+    /* ACCENT TOKENS — all collapse to monochrome variants of fg/paper/mid.
+       Kept as named vars so the rest of the CSS keeps working unchanged. */
+    --gold:var(--fg);--rust:var(--fg);--warn:var(--fg);--ok:var(--fg);--hot:var(--fg);
+    --spray-magenta:var(--fg);--spray-cyan:var(--fg);--spray-yellow:var(--fg);
+    --spray-purple:var(--fg);--spray-lime:var(--fg);--spray-orange:var(--fg);
+    /* DISPLAY FONTS */
+    --display:'Permanent Marker',Impact,cursive;
+    --tag-font:'Bangers','Helvetica Neue',sans-serif;
+    --safe-top:env(safe-area-inset-top,0);
+    --safe-bottom:env(safe-area-inset-bottom,0);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--fg);overflow:hidden;line-height:1.5;overscroll-behavior:none;position:relative}
+  /* CITY-SILHOUETTE BACKDROP — faint monochrome graffiti city behind every view */
+  body::before{
+    content:'';position:fixed;left:0;right:0;bottom:0;height:180px;pointer-events:none;z-index:0;opacity:.08;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 180' preserveAspectRatio='xMidYEnd slice'><g fill='%2348494b'><rect x='0' y='80' width='60' height='100'/><rect x='60' y='40' width='40' height='140'/><rect x='100' y='90' width='80' height='90'/><rect x='180' y='20' width='30' height='160'/><rect x='210' y='60' width='90' height='120'/><rect x='300' y='70' width='50' height='110'/><rect x='350' y='30' width='70' height='150'/><rect x='420' y='90' width='100' height='90'/><rect x='520' y='50' width='40' height='130'/><rect x='560' y='80' width='80' height='100'/><rect x='640' y='20' width='30' height='160'/><rect x='670' y='60' width='90' height='120'/><rect x='760' y='100' width='60' height='80'/><rect x='820' y='40' width='50' height='140'/><rect x='870' y='80' width='100' height='100'/><rect x='970' y='30' width='30' height='150'/><rect x='1000' y='60' width='80' height='120'/><rect x='1080' y='100' width='40' height='80'/><rect x='1120' y='50' width='90' height='130'/><rect x='1210' y='80' width='60' height='100'/><rect x='1270' y='30' width='40' height='150'/><rect x='1310' y='70' width='100' height='110'/><rect x='1410' y='90' width='80' height='90'/><rect x='1490' y='50' width='40' height='130'/><rect x='1530' y='80' width='70' height='100'/></g><g fill='%2348494b'><rect x='190' y='10' width='4' height='12'/><rect x='366' y='20' width='4' height='12'/><rect x='648' y='10' width='4' height='12'/><rect x='985' y='20' width='4' height='12'/><rect x='1282' y='20' width='4' height='12'/></g></svg>");
+    background-repeat:repeat-x;background-position:bottom;background-size:auto 180px;
+  }
+  button{font-family:inherit;cursor:pointer;border:1.5px solid var(--fg);background:var(--paper);color:var(--fg);padding:9px 16px;font-weight:700;letter-spacing:.5px;transition:all .15s;font-size:12px;text-transform:uppercase;border-radius:0;touch-action:manipulation}
+  button:hover:not(:disabled),button:focus-visible:not(:disabled){background:var(--fg);color:var(--paper);outline:none}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button.primary{background:var(--fg);color:var(--paper);box-shadow:3px 3px 0 var(--spray-magenta)}
+  button.primary:hover:not(:disabled){background:var(--dark);transform:translate(-1px,-1px);box-shadow:5px 5px 0 var(--spray-magenta)}
+  button.primary:active:not(:disabled){transform:translate(2px,2px);box-shadow:1px 1px 0 var(--spray-magenta)}
+  button.ghost{border-color:var(--mid);color:var(--mid)}
+  button.ghost:hover:not(:disabled){background:var(--mid);color:var(--paper)}
+  button.danger{border-color:var(--warn);color:var(--warn)}
+  button.danger:hover:not(:disabled){background:var(--warn);color:#fff}
+  input,select{font-family:inherit;border:1.5px solid var(--fg);background:var(--paper);color:var(--fg);padding:11px 14px;font-size:16px;outline:none;letter-spacing:.5px;border-radius:0}
+  input:focus,select:focus{background:var(--code)}
+  h1,h2,h3{letter-spacing:-.01em;font-weight:800}
+  .badge{display:inline-block;padding:2px 7px;background:var(--paper);color:var(--fg);border:1.5px solid var(--fg);font-size:10px;letter-spacing:1px;font-weight:400;font-family:var(--tag-font);box-shadow:2px 2px 0 var(--fg);transform:rotate(-2deg)}
+  code{background:var(--code);padding:.15rem .4rem;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:.9em}
+  ::selection{background:var(--fg);color:var(--paper)}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;gap:8px}
+  .hidden{display:none!important}
+
+  #app{height:100vh;display:flex;flex-direction:column}
+
+  header{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;padding-top:max(8px,var(--safe-top));border-bottom:2px solid var(--fg);background:var(--paper);flex-shrink:0;flex-wrap:wrap;gap:10px;z-index:30;position:relative}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand .logo{width:32px;height:32px;background:var(--fg);position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:2px 2px 0 var(--spray-magenta);transform:rotate(-3deg)}
+  .brand .logo::after{content:'';position:absolute;width:14px;height:14px;background:var(--bg);clip-path:polygon(40% 0,60% 0,60% 40%,100% 40%,100% 60%,60% 60%,60% 100%,40% 100%,40% 60%,0 60%,0 40%,40% 40%)}
+  .brand h1{font-family:var(--tag-font);font-size:20px;letter-spacing:1.5px;font-weight:400;line-height:1}
+  .brand h1 small{display:block;font-family:-apple-system,sans-serif;font-size:7px;letter-spacing:5px;color:var(--mid);font-weight:600;margin-top:2px}
+
+  .hud{display:flex;align-items:center;gap:14px;font-size:10px;letter-spacing:1px;flex-wrap:wrap}
+  .hud .stat{display:flex;flex-direction:column;align-items:flex-start;line-height:1.1;cursor:default}
+  .hud .stat b{font-size:13px;font-weight:800}
+  .hud .stat span{color:var(--mid);font-size:8px;letter-spacing:1.5px;margin-top:2px;text-transform:uppercase}
+  .hud .divider{width:1px;height:24px;background:var(--border)}
+  .energy-bar{display:flex;gap:3px;align-items:center}
+  .energy-bar .pip{width:13px;height:13px;border:1.5px solid var(--mid);position:relative;overflow:hidden}
+  .energy-bar .pip::after{content:'';position:absolute;inset:1px;background:var(--fg);transform:scaleY(0);transform-origin:bottom;transition:transform .3s}
+  .energy-bar .pip.full::after{transform:scaleY(1);background:linear-gradient(180deg,var(--spray-lime),var(--fg))}
+  .energy-bar .pip.partial::after{transform:scaleY(var(--p,0));background:var(--mid)}
+  .energy-bar .pip.full{border-color:var(--fg);box-shadow:0 0 5px rgba(93,255,61,.6)}
+  .me{display:flex;align-items:center;gap:8px;padding-left:10px;border-left:1px solid var(--border)}
+  .me img{width:32px;height:32px;border:1.5px solid var(--fg);image-rendering:pixelated;background:var(--bg);flex-shrink:0}
+  .me-info{font-size:10px;line-height:1.3;min-width:0}
+  .me-info b{font-size:11px}
+  .me-info span{color:var(--mid);font-size:9px}
+  .me-info .addr{font-family:ui-monospace,monospace;color:var(--gold)}
+  .me-info .pwr-bonus{color:var(--ok);font-weight:700}
+  .crew-tag{display:inline-block;padding:1px 4px;background:var(--fg);color:var(--paper);font-size:8px;font-weight:800;letter-spacing:1px;font-family:ui-monospace,monospace;margin-left:3px}
+
+  .icon-btn{width:34px;height:34px;border:1.5px solid var(--fg);background:var(--paper);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;transition:all .15s;flex-shrink:0}
+  .icon-btn:hover{background:var(--fg);color:var(--paper)}
+  .icon-btn .dot{position:absolute;top:-3px;right:-3px;background:var(--warn);color:#fff;font-size:9px;font-weight:800;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--paper)}
+
+  .global-bar{display:flex;justify-content:center;align-items:center;gap:18px;padding:6px 16px;background:var(--dark);color:var(--paper);font-size:9px;letter-spacing:2px;text-transform:uppercase;font-weight:600;flex-wrap:wrap;overflow:hidden;position:relative;border-bottom:3px solid transparent;border-image:linear-gradient(90deg,var(--spray-magenta),var(--spray-cyan),var(--spray-yellow),var(--spray-magenta)) 1}
+  .global-bar b{color:var(--paper);font-family:ui-monospace,monospace;letter-spacing:0;font-size:11px}
+  .global-bar .live::before{content:'';display:inline-block;width:6px;height:6px;background:var(--paper);border-radius:50%;margin-right:5px;animation:pulse 1.4s ease infinite}
+  .global-bar .season{color:var(--gold);font-weight:700;border-left:1px solid #555;padding-left:14px}
+  @keyframes pulse{50%{opacity:.35}}
+
+  main{flex:1;overflow:auto;background:var(--bg);-webkit-overflow-scrolling:touch;background-image:radial-gradient(circle at 1px 1px,rgba(72,73,75,.09) 1px,transparent 0);background-size:10px 10px}
+  .container{max-width:1240px;margin:0 auto;padding:20px 16px;padding-bottom:max(20px,calc(var(--safe-bottom) + 20px))}
+  .view{display:none;flex-direction:column;gap:18px;animation:fadeIn .3s ease}
+  .view.active{display:flex}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .panel{background:var(--paper);border:1.5px solid var(--fg);padding:16px;box-shadow:3px 3px 0 var(--fg)}
+  .panel h3{font-family:var(--tag-font);font-size:16px;letter-spacing:1.5px;margin-bottom:10px;padding-bottom:7px;border-bottom:1.5px solid var(--fg);text-transform:uppercase;font-weight:400;color:var(--fg)}
+
+  .gate{min-height:calc(100vh - 96px);display:flex;align-items:center;justify-content:center;padding:30px 16px;position:relative;overflow:hidden}
+  .gate::before{content:'';position:absolute;top:-120px;left:-80px;width:400px;height:400px;background:radial-gradient(circle,var(--spray-magenta) 0%,transparent 65%);opacity:.22;border-radius:50%;pointer-events:none;animation:floatA 14s ease-in-out infinite}
+  .gate::after{content:'';position:absolute;bottom:-150px;right:-80px;width:480px;height:480px;background:radial-gradient(circle,var(--spray-cyan) 0%,transparent 65%);opacity:.18;border-radius:50%;pointer-events:none;animation:floatB 18s ease-in-out infinite}
+  @keyframes floatA{0%,100%{transform:translate(0,0)}50%{transform:translate(30px,20px)}}
+  @keyframes floatB{0%,100%{transform:translate(0,0)}50%{transform:translate(-25px,-30px)}}
+  .gate-card{max-width:520px;width:100%;text-align:center;position:relative;z-index:1}
+  .gate-mark{font-family:var(--display);font-size:72px;letter-spacing:1px;margin-bottom:0;font-weight:400;line-height:.9;color:var(--fg);text-shadow:4px 4px 0 var(--spray-magenta),8px 8px 0 var(--fg);transform:rotate(-2deg);display:inline-block}
+  .gate-mark span{display:block;font-family:-apple-system,sans-serif;font-size:11px;letter-spacing:8px;color:var(--mid);font-weight:700;margin-top:22px;transform:rotate(2deg)}
+  .gate-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:var(--paper);border:2px solid var(--fg);color:var(--fg);font-size:9px;letter-spacing:3px;font-weight:800;margin-bottom:16px;box-shadow:3px 3px 0 var(--fg);transform:rotate(-2deg)}
+  .gate-pill::before{content:'';width:6px;height:6px;background:var(--fg);border-radius:50%;animation:pulse 1.6s ease infinite}
+  .gate-tag{font-size:13px;color:var(--mid);max-width:380px;margin:22px auto 24px;line-height:1.6}
+  .gate-actions{display:flex;flex-direction:column;gap:10px;align-items:center;margin-top:18px}
+  .gate-actions button{min-width:280px;padding:14px 22px;font-size:12px}
+  .wallet-input{display:flex;gap:6px;width:100%;max-width:380px;margin:0 auto}
+  .wallet-input input{flex:1;font-family:ui-monospace,monospace;font-size:13px;min-width:0}
+  .holdings-list{margin-top:16px;text-align:left}
+  .holdings-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;max-height:240px;overflow:auto;padding:4px}
+  .holding-chip{aspect-ratio:1;border:1.5px solid var(--fg);background:var(--paper);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:4px;transition:all .15s;position:relative;overflow:hidden}
+  .holding-chip:hover{background:var(--fg);color:var(--paper)}
+  .holding-chip:hover img{filter:invert(1)}
+  .holding-chip img{width:100%;image-rendering:pixelated;background:var(--bg)}
+  .holding-chip span{font-size:9px;font-weight:700;font-family:ui-monospace,monospace;margin-top:2px}
+
+  .picker{max-width:620px;margin:0 auto}
+  .picker-input{display:flex;gap:8px;justify-content:center;margin-bottom:10px;flex-wrap:wrap}
+  .picker-input input{width:170px;text-align:center;font-size:22px;letter-spacing:3px;font-weight:700}
+  .normie-card{margin:18px auto 0;max-width:380px;background:var(--paper);border:1.5px solid var(--fg);padding:16px;display:none}
+  .normie-card.show{display:block;animation:fadeIn .3s}
+  /* .img-wrap padding handled by .normie-card .img-wrap rule below */
+  .meta-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px;margin-top:10px;font-size:9px;letter-spacing:1px;text-transform:uppercase}
+  .meta-row div{padding:6px 4px;background:var(--code);text-align:center}
+  .meta-row b{display:block;font-size:13px;font-weight:800;letter-spacing:0;margin-top:2px}
+  .traits-grid{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:10px}
+  .traits-grid div{padding:6px 8px;background:var(--code);border-left:2px solid var(--fg)}
+  .traits-grid b{color:var(--mid);font-weight:500;text-transform:uppercase;font-size:8px;letter-spacing:1.5px;display:block;margin-bottom:2px}
+  .power-bar{margin-top:12px;padding:12px;background:var(--fg);color:var(--paper);text-align:center;font-weight:400;letter-spacing:2.5px;font-size:18px;font-family:var(--tag-font);border:1.5px solid var(--fg);box-shadow:4px 4px 0 var(--spray-cyan);position:relative}
+  .power-bar::after{content:'';position:absolute;top:-4px;right:-4px;width:14px;height:14px;background:var(--spray-yellow);border:1.5px solid var(--fg);border-radius:50%;transform:rotate(-12deg)}
+
+  .editor-layout{display:grid;grid-template-columns:1fr 280px;gap:18px}
+  .grid10{display:grid;grid-template-columns:repeat(10,1fr);gap:1px;background:var(--fg);padding:1px;width:100%;max-width:500px;margin:0 auto;aspect-ratio:1;user-select:none;border:1.5px solid var(--fg);touch-action:none}
+  .grid10 .cell{background:var(--bg);cursor:pointer;transition:background .05s;position:relative}
+  .grid10 .cell.on{background:var(--fg)}
+  .grid10 .cell:hover::after{content:'';position:absolute;inset:0;outline:2px solid var(--fg);outline-offset:-2px;z-index:2}
+  .editor-tools{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:10px;color:var(--mid)}
+  .pixel-counter{font-weight:800;color:var(--fg)}
+  .pixel-counter.full{color:var(--warn)}
+  .editor-actions{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+  .preset-list{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+  .preset-list button{padding:9px 4px;font-size:9px;display:flex;flex-direction:column;gap:2px;align-items:center}
+  .preset-list button span{font-size:7px;color:var(--mid);font-weight:500}
+  .preset-list button:hover span{color:var(--paper)}
+  .frame-preview{width:64px;height:64px;border:1.5px solid var(--fg);background:var(--bg);image-rendering:pixelated;display:block;margin:6px auto}
+
+  .city-stage{position:relative;background:linear-gradient(180deg,#f0f1ef,var(--bg) 60%,#cfd1d0);min-height:480px;border:1.5px solid var(--fg);overflow:hidden;touch-action:pan-x pan-y pinch-zoom}
+  .city-stage::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 100%,rgba(72,73,75,.18),transparent 60%);pointer-events:none}
+  .city-svg{width:100%;height:480px;display:block;position:relative;z-index:1}
+  .iso-zone{cursor:pointer;transition:filter .25s}
+  .iso-zone:hover,.iso-zone:focus{filter:brightness(.94) drop-shadow(0 6px 12px rgba(0,0,0,.25))}
+  .iso-zone-label{font-family:var(--tag-font),'Helvetica Neue',Arial,sans-serif;font-weight:400;pointer-events:none;letter-spacing:1.5px}
+  .iso-zone-sub{font-family:'Helvetica Neue',sans-serif;pointer-events:none;font-weight:600;letter-spacing:1px}
+  .iso-zone-stat{font-family:ui-monospace,monospace;font-weight:700;pointer-events:none}
+  .hotspot-flame{animation:flicker 1.6s ease-in-out infinite}
+  @keyframes flicker{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.7;transform:scale(1.08)}}
+  .map-legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;font-size:9px;letter-spacing:1.5px;color:var(--mid);padding:10px 0 4px;text-transform:uppercase;font-weight:600}
+  .map-legend .dot{display:inline-block;width:13px;height:13px;margin-right:5px;vertical-align:middle;border:1px solid var(--fg)}
+  .hotspot-banner{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:var(--hot);color:#fff;font-size:13px;letter-spacing:1.5px;font-weight:400;text-transform:uppercase;font-family:var(--tag-font);border:1.5px solid var(--fg);box-shadow:3px 3px 0 var(--fg);transform:rotate(-1.5deg)}
+  .hotspot-banner::before{content:'🔥';font-size:14px}
+
+  .zone-header{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px}
+  .breadcrumb{font-size:10px;letter-spacing:2px;color:var(--mid);text-transform:uppercase}
+  .breadcrumb a{color:var(--fg);cursor:pointer;text-decoration:none;font-weight:700}
+  .breadcrumb a:hover{text-decoration:underline}
+  .control-bar{height:8px;background:var(--code);border:1.5px solid var(--fg);position:relative;overflow:hidden}
+  .control-bar-fill{height:100%;transition:width .4s cubic-bezier(.2,.8,.2,1);background:var(--mid)}
+
+  .wall-stage{width:100%;padding:6px 0}
+  .wall-3d{width:100%}
+  .wall-frame{position:relative;width:100%;
+    border:10px solid var(--dark);
+    background-color:#cdb6a3;
+    background-image:var(--brick-tex);
+    background-repeat:repeat;
+    box-shadow:
+      inset 0 0 120px rgba(0,0,0,.38),
+      inset 0 18px 36px rgba(255,255,255,.22),
+      inset 0 -10px 30px rgba(0,0,0,.25),
+      0 8px 0 rgba(0,0,0,.15),
+      0 30px 50px -20px rgba(0,0,0,.55),
+      0 80px 100px -40px rgba(0,0,0,.4);
+    overflow:hidden}
+  .wall-frame::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 38% 18%,rgba(255,240,220,.22),transparent 55%);pointer-events:none;mix-blend-mode:overlay}
+  .wall-frame::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 70%,rgba(0,0,0,.18));pointer-events:none}
+  .wall-grid{position:relative;display:grid;grid-template-columns:repeat(var(--cols,16),1fr);grid-template-rows:repeat(var(--rows,6),1fr);width:100%;aspect-ratio:var(--cols,16) / var(--rows,6);z-index:1}
+  .wall-slot{position:relative;cursor:pointer;transition:all .12s;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+  .wall-slot:hover{background:rgba(255,250,235,.12);box-shadow:inset 0 0 14px rgba(255,240,220,.4);z-index:6}
+  .placed-tag{position:relative;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:3;transition:transform .15s,filter .3s;will-change:transform;min-width:0;min-height:0;overflow:visible;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+  .placed-tag:hover{transform:scale(1.08);z-index:8}
+  .placed-tag.mine{transform:scale(1.04);z-index:5}
+  .placed-tag.mine:hover{transform:scale(1.12)}
+  .placed-tag canvas{width:94%;height:94%;image-rendering:pixelated;display:block;background:#e3e5e4;outline:1px solid #2d2e30;filter:drop-shadow(2px 3px 0 rgba(0,0,0,.45)) drop-shadow(0 0 6px rgba(0,0,0,.25))}
+  .placed-tag.mine canvas{outline:2.5px solid var(--gold);outline-offset:1px;filter:drop-shadow(2px 3px 0 rgba(0,0,0,.5)) drop-shadow(0 0 12px rgba(160,120,32,.95))}
+  .placed-tag.crew canvas{outline:2px solid var(--crewColor,#48494b);outline-offset:1px}
+  .placed-tag.shielded::before{content:'🛡';position:absolute;top:-4px;right:-4px;background:var(--ok);color:#fff;font-size:10px;width:16px;height:16px;display:flex;align-items:center;justify-content:center;z-index:4;border-radius:50%;pointer-events:none}
+  .placed-tag .signature{position:absolute;bottom:-1px;left:50%;transform:translateX(-50%);font-size:9px;font-family:ui-monospace,monospace;color:#fff;font-weight:800;letter-spacing:.5px;background:rgba(45,46,48,.92);padding:1px 5px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s;z-index:2}
+  .placed-tag:hover .signature{opacity:1}
+  .placed-tag.mine .signature{opacity:1;background:var(--gold);color:#fff;box-shadow:0 0 0 1px var(--fg)}
+  .placed-tag.decayed canvas{opacity:.45;filter:drop-shadow(2px 3px 0 rgba(0,0,0,.55)) grayscale(.3)}
+  .placed-tag.burnt::after{content:'BURNT';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-12deg);background:var(--spray-magenta);color:#fff;padding:2px 8px;font-size:11px;font-weight:400;letter-spacing:1px;pointer-events:none;font-family:var(--tag-font);border:1.5px solid var(--fg);box-shadow:2px 2px 0 var(--fg);text-shadow:1px 1px 0 var(--fg)}
+
+  .zone-bottom{display:grid;grid-template-columns:1fr 280px;gap:18px}
+
+  .crew-bar{display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:1px;color:var(--mid)}
+  .crew-emblem{width:18px;height:18px;background:var(--crewColor,var(--fg));display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:800;font-family:ui-monospace,monospace}
+  .crew-list{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;font-size:10px;margin-top:6px}
+  .crew-list .member{display:flex;align-items:center;gap:5px;padding:4px;background:var(--code)}
+  .crew-list .member img{width:18px;height:18px;border:1px solid var(--fg);image-rendering:pixelated;background:var(--bg)}
+
+  .modal-bg{position:fixed;inset:0;background:rgba(45,46,48,.7);display:none;align-items:center;justify-content:center;z-index:100;padding:14px;backdrop-filter:blur(4px)}
+  .modal-bg.show{display:flex;animation:fadeIn .25s}
+  .modal{background:var(--paper);border:2px solid var(--fg);padding:22px;max-width:480px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 30px 60px -10px rgba(0,0,0,.4)}
+  .modal h3{margin-bottom:12px;letter-spacing:2px}
+  .modal .actions{display:flex;gap:7px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+  .battle-vs{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:center;margin:12px 0}
+  .battle-side{text-align:center}
+  .battle-side canvas{width:96px;height:96px;image-rendering:pixelated;border:1.5px solid var(--fg);background:var(--bg)}
+  .battle-side .pwr{font-size:34px;font-weight:900;margin-top:4px;letter-spacing:1px}
+  .battle-side .lbl{font-size:9px;color:var(--mid);letter-spacing:1.5px;line-height:1.4;text-transform:uppercase}
+  .battle-vs .vs{font-size:24px;font-weight:900;color:var(--mid)}
+  .battle-result{padding:11px;text-align:center;font-weight:800;letter-spacing:4px;margin-top:8px;font-size:14px}
+  .battle-result.win{background:var(--fg);color:var(--paper)}
+  .battle-result.lose{background:var(--paper);color:var(--fg);border:2px solid var(--fg);background-image:repeating-linear-gradient(45deg,transparent 0,transparent 6px,rgba(72,73,75,.18) 6px,rgba(72,73,75,.18) 8px)}
+
+  .toast{position:fixed;top:max(78px,calc(var(--safe-top) + 78px));left:50%;transform:translateX(-50%) translateY(-12px) rotate(-1.5deg);background:var(--fg);color:var(--paper);padding:11px 20px;font-size:11px;letter-spacing:1.5px;z-index:200;opacity:0;transition:all .25s;pointer-events:none;font-weight:700;border:2px solid var(--paper);box-shadow:0 0 0 2px var(--fg),4px 4px 0 var(--spray-magenta),0 8px 20px rgba(0,0,0,.3);max-width:90vw}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0) rotate(-1.5deg)}
+  .loading{display:inline-block;width:13px;height:13px;border:2px solid var(--mid);border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .lb-row{display:flex;align-items:center;gap:7px;padding:7px 5px;border-bottom:1px solid var(--border);font-size:11px}
+  .lb-row:last-child{border-bottom:none}
+  .lb-row.me{background:var(--code);border-left:3px solid var(--gold);padding-left:5px}
+  .lb-row .rank{font-weight:800;width:18px;color:var(--mid);font-family:ui-monospace,monospace}
+  .lb-row.gold .rank{color:var(--gold)}
+  .lb-row .lb-avatar{width:24px;height:24px;border:1px solid var(--fg);image-rendering:pixelated;background:var(--bg)}
+  .lb-row .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lb-row .score{font-weight:800;color:var(--fg);font-family:ui-monospace,monospace}
+
+  /* DRAWERS */
+  .drawer{position:fixed;top:0;right:-380px;width:380px;max-width:90vw;height:100%;background:var(--paper);border-left:2px solid var(--fg);z-index:90;transition:right .3s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;box-shadow:-12px 0 30px rgba(0,0,0,.2)}
+  .drawer.open{right:0}
+  .drawer-head{padding:14px 18px;padding-top:max(14px,calc(var(--safe-top) + 14px));border-bottom:2px solid var(--fg);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+  .drawer-head h3{font-size:14px;letter-spacing:2px}
+  .drawer-body{flex:1;overflow:auto;padding:14px 18px;-webkit-overflow-scrolling:touch}
+  .drawer-close{width:30px;height:30px;border:1.5px solid var(--fg);background:var(--paper);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800}
+  .notif-item{padding:10px 12px;border-bottom:1px solid var(--border);font-size:11px;line-height:1.5}
+  .notif-item.unread{background:var(--code);border-left:3px solid var(--gold);padding-left:9px}
+  .notif-item .time{font-size:9px;color:var(--mid);letter-spacing:1px;text-transform:uppercase;margin-top:3px;font-family:ui-monospace,monospace}
+  .notif-empty{text-align:center;padding:30px 20px;color:var(--mid);font-size:11px;letter-spacing:1px}
+
+  /* ONBOARDING TUTORIAL */
+  .tutorial{position:fixed;inset:0;background:rgba(45,46,48,.85);z-index:150;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)}
+  .tutorial.show{display:flex;animation:fadeIn .3s}
+  .tutorial-card{background:var(--paper);border:2px solid var(--fg);padding:22px;max-width:420px;width:100%;text-align:center;position:relative}
+  .tutorial-step{font-size:9px;letter-spacing:3px;color:var(--mid);font-weight:700;text-transform:uppercase;margin-bottom:10px}
+  .tutorial-card h3{font-size:18px;margin-bottom:10px;letter-spacing:-.5px}
+  .tutorial-card p{font-size:13px;color:var(--mid);line-height:1.6;margin-bottom:18px}
+  .tutorial-illust{width:80px;height:80px;margin:0 auto 14px;background:var(--code);border:1.5px solid var(--fg);display:flex;align-items:center;justify-content:center;font-size:36px}
+  .tutorial-progress{display:flex;gap:6px;justify-content:center;margin-bottom:14px}
+  .tutorial-progress .dot{width:8px;height:8px;border:1.5px solid var(--fg);border-radius:50%}
+  .tutorial-progress .dot.active{background:var(--fg)}
+
+  /* SEASON BANNER */
+  .season-banner{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--fg);color:var(--paper);font-size:10px;letter-spacing:1.5px;font-weight:700;text-transform:uppercase;cursor:pointer;border:1.5px solid var(--fg)}
+  .season-banner b{font-family:ui-monospace,monospace;letter-spacing:0;font-size:13px}
+  .season-banner::before{content:'⌛';font-size:14px;animation:pulse 2s ease infinite}
+
+  /* AP BAR */
+  .ap-bar{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;background:var(--code);border:1px solid var(--fg);font-size:10px;letter-spacing:1px;font-weight:700;font-family:ui-monospace,monospace}
+  .ap-bar::before{content:'⚡';margin-right:2px}
+
+  /* RATE LIMIT WARN */
+  .rate-warn{font-size:9px;color:var(--warn);letter-spacing:1px;text-transform:uppercase;font-weight:700;margin-top:4px;display:none}
+  .rate-warn.show{display:block;animation:fadeIn .2s}
+
+  /* GRAFFITI DECOR — hand-tagged corner labels behind sections, monochrome */
+  .gate::before,.gate::after{filter:grayscale(1)!important}
+  #viewHome::before,#viewCity::before{content:'NORMIES';position:absolute;top:18px;right:18px;font-family:var(--display);font-size:54px;letter-spacing:2px;color:var(--fg);opacity:.06;pointer-events:none;transform:rotate(-8deg);z-index:0;line-height:1}
+  #viewEditor::before{content:'TAG UP';position:absolute;top:20px;right:24px;font-family:var(--display);font-size:48px;letter-spacing:2px;color:var(--fg);opacity:.07;pointer-events:none;transform:rotate(6deg);z-index:0;line-height:1}
+  #viewZone::before{content:'TURF';position:absolute;top:14px;left:18px;font-family:var(--display);font-size:62px;letter-spacing:3px;color:var(--fg);opacity:.06;pointer-events:none;transform:rotate(-4deg);z-index:0;line-height:1}
+  .view{position:relative}
+  /* HALFTONE accents on key surfaces — comic book feel, monochrome */
+  .panel{background-image:radial-gradient(circle at 2px 2px,rgba(72,73,75,.05) 1px,transparent 0);background-size:14px 14px}
+  /* CITY MAP — strictly official monochrome palette */
+  #viewCity .hotspot-banner{background:var(--paper);color:var(--fg);border:2px solid var(--fg);box-shadow:4px 4px 0 var(--fg)}
+  #viewCity .hotspot-banner::before{content:'🔥';filter:grayscale(1) contrast(1.4)}
+  /* GRAFFITI HEADLINES — view-level titles get the Permanent Marker treatment */
+  #viewHome h2{font-family:var(--display)!important;font-weight:400!important;letter-spacing:1px!important;text-shadow:3px 3px 0 var(--spray-magenta);transform:rotate(-1.5deg);display:inline-block;font-size:38px!important}
+  #viewCity > div > div > h3,#viewCity h3[style*="font-size:24px"]{font-family:var(--display)!important;font-weight:400!important;letter-spacing:1px!important;text-shadow:3px 3px 0 var(--paper),4px 4px 0 var(--fg);transform:rotate(-1deg);display:inline-block;color:var(--fg)}
+  #zoneTitle{font-family:var(--display)!important;font-weight:400!important;letter-spacing:1px!important;text-shadow:3px 3px 0 var(--spray-yellow);transform:rotate(-1deg);display:inline-block}
+  .tutorial-card h3{font-family:var(--display)!important;font-weight:400!important;letter-spacing:1px!important;font-size:22px}
+  .modal h3{font-family:var(--tag-font);font-weight:400;font-size:18px;letter-spacing:1.5px}
+  /* TOAST as graffiti sticker */
+  .toast{font-family:var(--tag-font)!important;font-weight:400!important;font-size:13px!important;letter-spacing:1.5px!important}
+  /* SECTION DIVIDERS — subtle spray underline on h3 panels */
+  .panel{position:relative}
+  /* CITY STAGE — halftone overlay for that comic feel */
+  .city-stage::after{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 2px 2px,rgba(72,73,75,.07) 1px,transparent 0);background-size:14px 14px;pointer-events:none;z-index:0}
+  .city-svg{position:relative;z-index:1}
+  /* SPRAY CORNER ACCENTS on key panels — visible on hover */
+  .normie-card{position:relative;box-shadow:5px 5px 0 var(--fg)}
+  .normie-card::before{content:'';position:absolute;top:-6px;left:-6px;width:18px;height:18px;background:var(--paper);border:1.5px solid var(--fg);transform:rotate(-12deg);z-index:2}
+  /* NORMIE PORTRAIT — give it breathing room so the head/hair doesn't slam into the frame */
+  .normie-portrait,.normie-card .img-wrap{padding:10px;background:var(--bg);border:1.5px solid var(--fg);position:relative}
+  .normie-portrait::after,.normie-card .img-wrap::after{content:'';position:absolute;inset:6px;border:1px solid var(--border);pointer-events:none}
+  .normie-portrait img,.normie-card .img-wrap img{width:100%;image-rendering:pixelated;display:block;position:relative;z-index:1}
+  /* META ROW pills */
+  .meta-row b{font-family:var(--tag-font);font-weight:400;letter-spacing:1px}
+  /* CREW EMBLEM — handwritten feel */
+  .crew-emblem{font-family:var(--tag-font);font-weight:400}
+  .crew-tag{font-family:var(--tag-font);font-weight:400;font-size:10px;letter-spacing:1px}
+  /* HUD AP / ZONES / TAGS — slightly more emphatic */
+  .hud .stat b{font-family:var(--tag-font);font-weight:400;letter-spacing:1px;font-size:16px}
+  .global-bar b{font-family:var(--tag-font);font-weight:400;font-size:13px;letter-spacing:1px}
+  /* BATTLE modal power numbers */
+  .battle-side .pwr{font-family:var(--display)!important;font-weight:400!important;letter-spacing:0!important;font-size:42px!important}
+  .battle-vs .vs{font-family:var(--display);font-weight:400}
+  .battle-result{font-family:var(--tag-font)!important;font-weight:400!important;font-size:18px!important;letter-spacing:3px!important}
+
+  /* ═══════ MICRO-UPGRADES — wow visual layer ═══════ */
+  /* Particle burst on placement */
+  .particle-burst{position:fixed;width:0;height:0;pointer-events:none;z-index:250}
+  .particle{position:absolute;width:7px;height:7px;background:var(--fg);border:1px solid var(--paper);left:-3px;top:-3px;will-change:transform,opacity;animation:particleBurst .6s cubic-bezier(.2,.6,.4,1) forwards;animation-delay:var(--delay,0ms)}
+  @keyframes particleBurst{0%{transform:translate(0,0) scale(1) rotate(0);opacity:1}100%{transform:translate(var(--tx,0),var(--ty,0)) scale(.3) rotate(var(--rot,180deg));opacity:0}}
+
+  /* Fresh-place tag drop-in (only on local action, not on remote sync) */
+  .placed-tag.fresh-place{animation:tagDropIn .45s cubic-bezier(.34,1.56,.64,1)}
+  .placed-tag.fresh-place.mine{animation:tagDropInMine .45s cubic-bezier(.34,1.56,.64,1)}
+  @keyframes tagDropIn{0%{transform:scale(0) rotate(-15deg);opacity:0}55%{transform:scale(1.25) rotate(4deg);opacity:1}100%{transform:scale(1) rotate(0);opacity:1}}
+  @keyframes tagDropInMine{0%{transform:scale(0) rotate(-15deg);opacity:0}55%{transform:scale(1.3) rotate(4deg);opacity:1}100%{transform:scale(1.04) rotate(0);opacity:1}}
+
+  /* Battle modal WIN flash + LOSE shake */
+  .modal-bg.win-flash::before{content:'';position:absolute;inset:0;background:radial-gradient(circle,rgba(255,255,255,.7),transparent 60%);pointer-events:none;z-index:99;animation:winFlash .9s ease-out}
+  @keyframes winFlash{0%{opacity:0;transform:scale(.2)}30%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.6)}}
+  .modal.lose-shake{animation:loseShake .55s cubic-bezier(.36,.07,.19,.97)}
+  @keyframes loseShake{0%,100%{transform:translate(0,0)}10%{transform:translate(-8px,-3px)}20%{transform:translate(7px,3px)}30%{transform:translate(-6px,2px)}40%{transform:translate(6px,-2px)}50%{transform:translate(-4px,0)}60%{transform:translate(4px,1px)}70%{transform:translate(-3px,-1px)}80%{transform:translate(2px,0)}90%{transform:translate(-1px,0)}}
+
+  /* Ambient light sweep across the brick wall — cinematic feel */
+  .wall-sweep{position:absolute;top:0;bottom:0;left:0;width:25%;pointer-events:none;z-index:2;background:linear-gradient(90deg,transparent,rgba(255,250,235,.22),transparent);animation:wallSweep 11s linear infinite;mix-blend-mode:overlay;will-change:transform}
+  @keyframes wallSweep{0%{transform:translateX(-100%)}100%{transform:translateX(500%)}}
+
+  /* Energy MAX breath — when all pips are full they pulse in wave */
+  .energy-bar.energy-max .pip{animation:energyMaxBreath 2.2s ease-in-out infinite}
+  .energy-bar.energy-max .pip:nth-child(2){animation-delay:.12s}
+  .energy-bar.energy-max .pip:nth-child(3){animation-delay:.24s}
+  .energy-bar.energy-max .pip:nth-child(4){animation-delay:.36s}
+  .energy-bar.energy-max .pip:nth-child(5){animation-delay:.48s}
+  @keyframes energyMaxBreath{0%,100%{box-shadow:0 0 0 0 rgba(72,73,75,0)}50%{box-shadow:0 0 6px 1px rgba(72,73,75,.45)}}
+
+  /* Hotspot building radiate */
+  .iso-zone.hotspot-radiate{animation:hotspotRadiate 3s ease-in-out infinite}
+  @keyframes hotspotRadiate{0%,100%{filter:drop-shadow(0 0 0 rgba(72,73,75,0))}50%{filter:drop-shadow(0 0 14px rgba(72,73,75,.55))}}
+
+  /* Zone fade-in stagger on city map enter */
+  .iso-zone{animation:zoneFadeIn .5s ease backwards;transform-box:fill-box;transform-origin:center;transition:transform .35s cubic-bezier(.34,1.56,.64,1),filter .25s}
+  .iso-zone:nth-of-type(1){animation-delay:.05s}
+  .iso-zone:nth-of-type(2){animation-delay:.11s}
+  .iso-zone:nth-of-type(3){animation-delay:.17s}
+  .iso-zone:nth-of-type(4){animation-delay:.23s}
+  .iso-zone:nth-of-type(5){animation-delay:.29s}
+  .iso-zone:nth-of-type(6){animation-delay:.35s}
+  .iso-zone:nth-of-type(7){animation-delay:.41s}
+  .iso-zone:nth-of-type(8){animation-delay:.47s}
+  @keyframes zoneFadeIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+  /* Override existing hover to add lift */
+  .iso-zone:hover{transform:translateY(-6px) scale(1.02);filter:brightness(.94) drop-shadow(0 8px 14px rgba(0,0,0,.3))}
+
+  /* View entrance — slightly bigger pop than current */
+  .view.active{animation:viewPop .4s cubic-bezier(.34,1.4,.64,1)}
+  @keyframes viewPop{0%{opacity:0;transform:translateY(12px) scale(.985)}100%{opacity:1;transform:translateY(0) scale(1)}}
+
+  /* MOBILE — comprehensive responsive layout */
+  @media (max-width:760px){
+    .editor-layout,.zone-bottom{grid-template-columns:1fr}
+    .meta-row{grid-template-columns:1fr 1fr}
+    .gate-mark{font-size:42px}
+    .brand h1{font-size:11px;letter-spacing:2px}
+    .brand h1 small{display:none}
+    .hud{gap:10px;font-size:9px}
+    .hud .stat b{font-size:12px}
+    .hud .divider{display:none}
+    .me{padding-left:0;border:none}
+    .me-info{display:none}
+    .global-bar{font-size:8px;gap:10px;padding:5px 10px}
+    .global-bar .season{padding-left:10px}
+    .city-svg{height:380px}
+    .container{padding:14px 10px}
+    .panel{padding:12px}
+    h3{font-size:14px}
+    #zoneTitle{font-size:22px!important}
+    .editor-actions{gap:5px}
+    .editor-actions button{padding:8px 10px;font-size:10px;flex:1;min-width:auto}
+    .picker-input input{width:100%}
+    .picker-input{flex-direction:column}
+    .picker-input button{width:100%}
+    .gate-actions button{min-width:0;width:100%}
+    .crew-list{grid-template-columns:1fr}
+  }
+  @media (max-width:480px){
+    header{padding:6px 10px;gap:6px}
+    .brand .logo{width:26px;height:26px}
+    .brand h1{font-size:10px}
+    .icon-btn{width:30px;height:30px}
+    .me img{width:28px;height:28px}
+    .gate-mark{font-size:34px;letter-spacing:-1px}
+    .gate-mark span{font-size:9px;letter-spacing:5px}
+    .wall-3d{transform:none}
+    .wall-stage:hover .wall-3d{transform:none}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.01ms!important;transition-duration:.05ms!important}
+    .wall-3d{transform:none!important}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">
+      <div class="logo"></div>
+      <h1>TAG BATTLE<small>NORMIES HOLDER ARENA</small></h1>
+    </div>
+    <div class="hud" id="hud" style="display:none">
+      <div class="stat">
+        <div class="energy-bar" id="energyBar"></div>
+        <span>ENERGY · <b id="energyTimer">FULL</b></span>
+      </div>
+      <div class="divider"></div>
+      <div class="stat"><b id="hudZones">0</b><span>Zones</span></div>
+      <div class="divider"></div>
+      <div class="stat"><b id="hudTags">0</b><span>Tags</span></div>
+      <div class="divider"></div>
+      <div class="stat" id="apStat" title="Action Points (Normies Canvas)" style="cursor:pointer">
+        <b id="hudAp">—</b><span>AP</span>
+      </div>
+      <div class="me" id="meBox" style="display:none">
+        <img id="meAvatar" alt="">
+        <div class="me-info">
+          <b id="meName"></b><br>
+          <span id="meStats"></span><br>
+          <span class="addr" id="meAddr"></span>
+        </div>
+      </div>
+    </div>
+    <div class="row" style="gap:6px">
+      <button class="icon-btn" id="btnNotif" title="Notifications" style="display:none">🔔<span class="dot" id="notifDot" style="display:none">0</span></button>
+      <button class="icon-btn" id="btnCrew" title="Crew" style="display:none">⚑</button>
+      <button class="icon-btn" id="btnSettings" title="Menu">⋯</button>
+    </div>
+  </header>
+
+  <div class="global-bar" id="globalBar" style="display:none">
+    <span class="live">LIVE</span>
+    <span><b id="gbHolders">—</b> HOLDERS</span>
+    <span><b id="gbTags">—</b> TAGS</span>
+    <span><b id="gbCovers">—</b> COVERS</span>
+    <span>HOTSPOT · <b id="gbHotspot">—</b></span>
+    <span class="season">S<b id="gbSeason">1</b> · <b id="gbSeasonLeft">—</b></span>
+  </div>
+
+  <main>
+    <div class="container">
+
+      <!-- GATE -->
+      <section class="view active" id="viewGate">
+        <div class="gate">
+          <div class="gate-card">
+            <div class="gate-pill">HOLDERS ONLY</div>
+            <h1 class="gate-mark">TAG BATTLE<span>NORMIES TURF WAR</span></h1>
+            <p class="gate-tag">Connect your wallet. Ownership of your Normies is verified live on-chain via api.normies.art — no manual addresses, no spoofing.</p>
+            <button class="primary" id="btnConnectWallet" style="min-width:300px;padding:14px 22px;font-size:12px">⬢ CONNECT WALLET</button>
+            <div id="gateMsg" style="font-size:11px;color:var(--mid);margin-top:10px;letter-spacing:1px;min-height:16px"></div>
+            <div class="holdings-list" id="holdingsList" style="display:none">
+              <div style="font-size:10px;letter-spacing:2px;color:var(--mid);margin-bottom:8px;text-align:center">YOUR NORMIES — TAP ONE TO PLAY</div>
+              <div class="holdings-grid" id="holdingsGrid"></div>
+            </div>
+            <div class="gate-actions">
+              <button class="ghost" id="btnGuestPreview">CONTINUE AS GUEST</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- HOME -->
+      <section class="view" id="viewHome">
+        <div class="picker">
+          <div style="text-align:center;margin-bottom:14px">
+            <div class="gate-pill" id="walletPill">⬢ <span id="walletAddrShort">0x0000…0000</span></div>
+            <h2 style="font-size:32px;letter-spacing:-1px;margin:6px 0 2px">PICK YOUR NORMIE</h2>
+          </div>
+          <div class="picker-input">
+            <input id="normieIdInput" type="number" min="0" max="9999" placeholder="0–9999">
+            <button id="btnLoadNormie" class="primary">LOAD</button>
+            <button id="btnRandom" title="Random">🎲</button>
+          </div>
+          <div class="normie-card" id="previewCard">
+            <div class="img-wrap"><img id="previewImg" alt=""></div>
+            <div class="meta-row" id="previewMeta"></div>
+            <div class="traits-grid" id="previewTraits"></div>
+            <div class="power-bar" id="previewPower"></div>
+            <div id="ownerLine" style="font-size:9px;color:var(--mid);letter-spacing:1px;text-align:center;margin-top:8px;font-family:ui-monospace,monospace"></div>
+            <button id="btnConfirm" class="primary" style="width:100%;margin-top:12px">USE THIS NORMIE →</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- EDITOR -->
+      <section class="view" id="viewEditor">
+        <div class="editor-layout">
+          <div class="panel">
+            <h3>DRAW YOUR TAG · 10×10</h3>
+            <div class="grid10" id="tagGrid"></div>
+            <div class="editor-tools">
+              <span class="pixel-counter" id="pixelCounter">0 / 40 PX</span>
+              <span>CLICK OR DRAG · MAX 40 PX</span>
+            </div>
+            <div class="editor-actions">
+              <button id="btnClear">CLEAR</button>
+              <button id="btnConfirmTag" class="primary" style="margin-left:auto">ENTER THE CITY →</button>
+            </div>
+          </div>
+          <div class="panel">
+            <h3>QUICK PRESETS</h3>
+            <div class="preset-list" id="presetList"></div>
+            <h3 style="margin-top:18px">YOUR FRAME</h3>
+            <div id="frameInfo"></div>
+            <h3 style="margin-top:18px">YOUR NORMIE</h3>
+            <div id="editorNormieInfo"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CITY -->
+      <section class="view" id="viewCity">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px">
+          <div>
+            <div class="breadcrumb">CITY MAP</div>
+            <h3 style="font-size:24px">EIGHT NEIGHBORHOODS</h3>
+          </div>
+          <div class="row" style="gap:8px">
+            <div class="hotspot-banner">DAILY HOTSPOT · <span id="hotspotName">—</span></div>
+            <button id="btnEditTagFromCity" class="ghost">EDIT TAG</button>
+          </div>
+        </div>
+        <div class="city-stage"><svg class="city-svg" id="cityMap" viewBox="0 0 1200 480" preserveAspectRatio="xMidYMid meet"></svg></div>
+        <div class="map-legend">
+          <span><span class="dot" style="background:var(--fg)"></span>YOU</span>
+          <span><span class="dot" style="background:var(--mid);background-image:repeating-linear-gradient(45deg,rgba(0,0,0,.25) 0,rgba(0,0,0,.25) 2px,transparent 2px,transparent 4px)"></span>RIVAL</span>
+          <span><span class="dot" style="background:#c4c5c4;background-image:radial-gradient(circle,rgba(72,73,75,.55) 1.2px,transparent 0);background-size:4px 4px"></span>CONTESTED</span>
+          <span><span class="dot" style="background:var(--bg)"></span>EMPTY</span>
+          <span><span class="dot" style="background:var(--paper);box-shadow:inset 0 0 0 2px var(--fg)"></span>HOTSPOT 2×</span>
+        </div>
+      </section>
+
+      <!-- ZONE -->
+      <section class="view" id="viewZone">
+        <div class="zone-header">
+          <div>
+            <div class="breadcrumb"><a id="bcCity">◂ CITY</a> · <span id="bcZoneType"></span></div>
+            <h3 id="zoneTitle" style="font-size:30px;letter-spacing:-.5px">—</h3>
+            <div style="font-size:10px;color:var(--mid);letter-spacing:1.5px;text-transform:uppercase" id="zoneCapacity"></div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:10px;color:var(--mid);letter-spacing:1.5px;text-transform:uppercase">CONTROL</div>
+            <div id="zoneControl" style="font-size:16px;font-weight:800">—</div>
+            <div id="zoneHotspot" style="display:none;margin-top:4px"><span class="hotspot-banner">2× POINTS</span></div>
+          </div>
+        </div>
+        <div class="control-bar"><div class="control-bar-fill" id="zoneCtrlBar" style="width:0%"></div></div>
+        <div class="wall-stage"><div class="wall-3d"><div class="wall-frame" id="wallFrame"><div class="wall-grid" id="zoneWall"></div><div class="wall-sweep"></div></div></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--mid);letter-spacing:1.5px;text-transform:uppercase;margin-top:-4px">
+          <span><b style="color:var(--fg)">CLICK</b> EMPTY · <b style="color:var(--fg)">COVER</b> ENEMY · <b style="color:var(--fg)">TAP</b> YOURS TO REFRESH</span>
+          <span id="zoneOccupancy"></span>
+        </div>
+        <div id="rateWarn" class="rate-warn">⚠ Rate-limited · slow down for a moment</div>
+        <div class="zone-bottom">
+          <div class="panel"><h3>ZONE LEADERBOARD</h3><div id="zoneLeaderboard"></div></div>
+          <div class="panel">
+            <h3>ACTIONS</h3>
+            <button id="btnEditTagFromZone" class="ghost" style="width:100%;margin-bottom:5px">EDIT MY TAG</button>
+            <button id="btnBackToCity" style="width:100%;margin-bottom:5px">◂ BACK TO CITY</button>
+            <button id="btnUseAP" class="ghost" style="width:100%;margin-bottom:5px;font-size:10px">⚡ USE AP</button>
+            <button id="btnResetZone" class="danger" style="width:100%;font-size:9px">RESET ZONE</button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- DRAWERS -->
+<div class="drawer" id="notifDrawer">
+  <div class="drawer-head"><h3>NOTIFICATIONS</h3><button class="drawer-close" data-close="notif">×</button></div>
+  <div class="drawer-body">
+    <div style="margin-bottom:12px"><button id="btnEnablePush" class="ghost" style="width:100%;font-size:10px">ENABLE PUSH NOTIFICATIONS</button></div>
+    <div id="notifList"></div>
+  </div>
+</div>
+
+<div class="drawer" id="crewDrawer">
+  <div class="drawer-head"><h3>CREW</h3><button class="drawer-close" data-close="crew">×</button></div>
+  <div class="drawer-body" id="crewBody"></div>
+</div>
+
+<div class="drawer" id="settingsDrawer">
+  <div class="drawer-head"><h3>MENU</h3><button class="drawer-close" data-close="settings">×</button></div>
+  <div class="drawer-body" id="settingsBody"></div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-bg" id="battleModal">
+  <div class="modal">
+    <h3>⚔ BATTLE</h3>
+    <div class="battle-vs" id="battleVs"></div>
+    <div class="battle-result" id="battleResult"></div>
+    <div class="actions"><button id="btnBattleClose" class="primary">CONTINUE</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="apModal">
+  <div class="modal">
+    <h3>⚡ ACTION POINTS</h3>
+    <p style="font-size:12px;color:var(--mid);margin-bottom:14px">From your Normie's on-chain Canvas (<code>/canvas/info</code>). Spend AP for tactical edge.</p>
+    <div id="apOptions" class="col"></div>
+    <div class="actions"><button class="ghost" data-close-modal="ap">CLOSE</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="seasonEndModal">
+  <div class="modal" style="text-align:center">
+    <h3 style="font-size:22px;color:var(--gold)">🏆 SEASON ENDED</h3>
+    <div id="seasonEndBody" style="font-size:13px;line-height:1.6;margin:14px 0"></div>
+    <div class="actions" style="justify-content:center"><button id="btnNewSeason" class="primary">START SEASON →</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="crewCreateModal">
+  <div class="modal">
+    <h3>CREATE A CREW</h3>
+    <div class="col" style="gap:10px;margin-top:10px">
+      <input id="crewNameInput" type="text" placeholder="Crew name (max 20 chars)" maxlength="20">
+      <input id="crewTagInput" type="text" placeholder="4-letter tag (e.g. KING)" maxlength="4" style="font-family:ui-monospace,monospace;text-transform:uppercase">
+      <div class="row">
+        <span style="font-size:10px;letter-spacing:1px;color:var(--mid)">COLOR</span>
+        <div class="row" id="crewColorPicker" style="gap:4px"></div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="ghost" data-close-modal="crewCreate">CANCEL</button>
+      <button class="primary" id="btnCreateCrewConfirm">CREATE</button>
+    </div>
+  </div>
+</div>
+
+<!-- TUTORIAL -->
+<div class="tutorial" id="tutorial">
+  <div class="tutorial-card">
+    <div class="tutorial-step" id="tutStep">STEP 1 OF 4</div>
+    <div class="tutorial-illust" id="tutIllust">🎨</div>
+    <h3 id="tutTitle">—</h3>
+    <p id="tutBody">—</p>
+    <div class="tutorial-progress" id="tutProgress"></div>
+    <div class="row" style="justify-content:space-between">
+      <button class="ghost" id="btnTutSkip">SKIP</button>
+      <button class="primary" id="btnTutNext">NEXT →</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+const API = 'https://api.normies.art';
+const STORAGE_KEY = 'tagbattle.preview.v8';
+const TAG_GRID = 10;
+const TAG_CELLS = TAG_GRID * TAG_GRID;
+
+// ═══════════════════════════════════════════════════════════════════
+//  MULTIPLAYER BACKEND — Path C
+//  Leave FIREBASE_CONFIG = null for local-only mode (Path A).
+//  To enable real-time multiplayer:
+//    1. Create a Firebase project (see LAUNCH.md Path C)
+//    2. Paste your project's config object below
+//    3. Deploy with `firebase deploy`
+//  Everything else stays the same — code automatically switches modes.
+// ═══════════════════════════════════════════════════════════════════
+const FIREBASE_CONFIG = null;
+let Backend = null;
+let zoneUnsub = null;
+let notifUnsub = null;
+
+async function initBackend(){
+  if (!FIREBASE_CONFIG) { console.info('[TAG Battle] Local mode (no Firebase config)'); return; }
+  try {
+    const mod = await import('./production/client-net.js');
+    Backend = await mod.createBackend(FIREBASE_CONFIG);
+    console.info('[TAG Battle] Multiplayer backend ONLINE');
+  } catch(e) {
+    console.error('[TAG Battle] Backend init failed:', e);
+    Backend = null;
+  }
+}
+
+// Sync any local tag write to the backend (fire-and-forget; optimistic UI).
+function syncTagWrite(zoneId, slot, tag){
+  if (!Backend) return;
+  Backend.placeTag(zoneId, slot, tag).catch(err => {
+    console.warn('[sync] placeTag failed:', err);
+    toast('Sync failed · ' + (err.message || 'unknown'));
+  });
+}
+function syncZoneReset(zoneId){
+  if (!Backend) return;
+  Backend.resetZone(zoneId).catch(err => console.warn('[sync] resetZone:', err));
+}
+
+const RULES = {
+  ENERGY_MAX: 5,
+  ENERGY_REGEN_MS: 30 * 1000,
+  PLACE_COST: 1,
+  COVER_COST: 2,
+  REFRESH_COST: 1,
+  CONTROL_THRESHOLD: 50,
+  CONTROL_REGEN_BONUS: 0.10,
+  HOLDER_POWER_PER_NORMIE: 2,
+  HOLDER_POWER_MAX: 20,
+  DECAY_DURATION_MS: 20 * 60 * 1000,
+  HOTSPOT_MULTIPLIER: 2,
+  MAX_PIXELS: 40,
+  RATE_WINDOW_MS: 60 * 1000,
+  RATE_MAX_ACTIONS: 30,
+  SEASON_DURATION_MS: 14 * 24 * 60 * 60 * 1000,
+  CREW_MAX_MEMBERS: 12,
+  AP_SHIELD_COST: 5,
+  AP_BOOST_COST: 10,
+  AP_REFRESH_ALL_COST: 3,
+  SHIELD_DURATION_MS: 24 * 60 * 60 * 1000,
+  BOOST_DURATION_MS: 60 * 60 * 1000,
+  SESSION_TTL_MS: 7 * 24 * 60 * 60 * 1000
+};
+
+const ZONE_TYPES = {
+  LANDMARK:    { cols:14, rows:5, label:'LANDMARK',    iso_h:78 },
+  BUILDING:    { cols:16, rows:6, label:'BUILDING',    iso_h:60 },
+  STREET:      { cols:18, rows:6, label:'STREET',      iso_h:42 },
+  UNDERGROUND: { cols:20, rows:8, label:'UNDERGROUND', iso_h:30 }
+};
+
+const CITY = [
+  { id:'park',     name:'PARK',           type:'STREET',      gx:0, gy:0 },
+  { id:'north',    name:'NORTH DISTRICT', type:'BUILDING',    gx:1, gy:0 },
+  { id:'harbor',   name:'HARBOR',         type:'LANDMARK',    gx:2, gy:0 },
+  { id:'west',     name:'WEST SIDE',      type:'STREET',      gx:0, gy:1 },
+  { id:'downtown', name:'DOWNTOWN',       type:'LANDMARK',    gx:1, gy:1 },
+  { id:'east',     name:'EAST SIDE',      type:'BUILDING',    gx:2, gy:1 },
+  { id:'south',    name:'SOUTH DISTRICT', type:'STREET',      gx:0, gy:2 },
+  { id:'subway',   name:'SUBWAY',         type:'UNDERGROUND', gx:1, gy:2 }
+];
+
+const CREW_COLORS = ['#1a1a1c','#2d2e30','#48494b','#6b6d6f','#9a9b9d','#c4c5c4','#3a3a3c','#7a7c7d'];
+
+/* ============= API CLIENT ============= */
+const cache = new Map();
+async function apiGet(path){
+  if (cache.has(path)) return cache.get(path);
+  const r = await fetch(`${API}${path}`);
+  if (!r.ok) throw new Error(`${path} → ${r.status}`);
+  const d = await r.json();
+  cache.set(path, d);
+  return d;
+}
+const fetchMetadata = id => apiGet(`/normie/${id}/metadata`);
+const fetchOwner    = id => apiGet(`/normie/${id}/owner`);
+const fetchHoldings = addr => apiGet(`/holders/${addr}`);
+const fetchCanvasInfo = id => apiGet(`/normie/${id}/canvas/info`);
+const pngUrl = id => `${API}/normie/${id}/image.png`;
+const getTrait = (a,t) => { const x=a.find(z=>z.trait_type===t); return x?x.value:null; };
+
+/* ============= POWER ============= */
+function hashStr(s){let h=0;for(let i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0}return Math.abs(h)}
+function calcPower(a){
+  let p=0;
+  const t=getTrait(a,'Type'); p+=t==='Human'?10:t==='Ape'?18:t==='Zombie'?16:t==='Alien'?20:14;
+  const g=getTrait(a,'Gender'); p+=g==='Male'?5:g==='Female'?5:8;
+  const ag=getTrait(a,'Age'); p+=ag==='Young'?5:ag==='Middle-Aged'?10:ag==='Old'?15:8;
+  const h=getTrait(a,'Hair Style'); p+=h?(hashStr(h)%15)+5:8;
+  const f=getTrait(a,'Facial Feature'); p+=f?(hashStr(f)%10)+3:5;
+  const e=(getTrait(a,'Eyes')||'').toLowerCase();
+  p+=e.includes('glasses')?10:e.includes('eye patch')?12:5;
+  const ex=getTrait(a,'Expression');
+  p+=ex==='Angry'?12:ex==='Serious'?10:ex==='Peaceful'?5:ex==='Happy'?7:6;
+  const ac=getTrait(a,'Accessory');
+  p+=ac==='Crown'?15:ac==='Top Hat'?12:ac==='Bandana'?8:(ac&&ac!=='None')?(hashStr(ac)%10)+3:2;
+  return Math.max(30,Math.min(100,p));
+}
+const powerLabel = p => p>=85?'LEGENDARY':p>=70?'STRONG':p>=55?'MEDIUM':p>=40?'WEAK':'ROOKIE';
+
+/* ============= TAG FRAMES (derived from Normie traits) ============= */
+function deriveFrame(attrs){
+  if (!attrs) return { type:'plain', accent:'#48494b' };
+  const acc = getTrait(attrs,'Accessory');
+  const eyes = getTrait(attrs,'Eyes')||'';
+  const expr = getTrait(attrs,'Expression');
+  const type = getTrait(attrs,'Type');
+  if (acc==='Crown')      return { type:'crown',   accent:'#48494b' };
+  if (acc==='Top Hat')    return { type:'tophat',  accent:'#48494b' };
+  if (acc==='Bandana')    return { type:'bandana', accent:'#48494b' };
+  if (eyes.includes('Big Shades') || eyes.includes('Eye Patch')) return { type:'shades', accent:'#48494b' };
+  if (expr==='Angry')     return { type:'spikes',  accent:'#48494b' };
+  if (type==='Alien')     return { type:'alien',   accent:'#48494b' };
+  if (type==='Zombie')    return { type:'zombie',  accent:'#48494b' };
+  if (type==='Ape')       return { type:'jungle',  accent:'#48494b' };
+  return { type:'plain', accent:'#48494b' };
+}
+function drawFrameOnTag(canvas, frame){
+  if (!frame || frame.type==='plain') return;
+  const ctx = canvas.getContext('2d');
+  const sz = canvas.width;
+  ctx.fillStyle = '#48494b';  // monochrome only
+  const mid = Math.floor(sz/2);
+
+  if (frame.type==='crown'){
+    // 3 peaks across top + base band
+    ctx.fillRect(1,0,1,1); ctx.fillRect(mid,0,1,1); ctx.fillRect(sz-2,0,1,1);
+    ctx.fillRect(1,1,sz-2,1);
+  } else if (frame.type==='tophat'){
+    // narrow crown + wide brim — a recognisable hat silhouette, not a stray line
+    const w = Math.max(2, Math.floor(sz/3));
+    ctx.fillRect(mid-Math.floor(w/2), 0, w, 1);
+    ctx.fillRect(1, 1, sz-2, 1);
+  } else if (frame.type==='bandana'){
+    // dotted top row (graffiti dash style)
+    for (let x=1;x<sz-1;x+=2) ctx.fillRect(x, 0, 1, 1);
+    ctx.fillRect(1, 1, sz-2, 1);
+  } else if (frame.type==='shades'){
+    // glasses arms at top corners only
+    ctx.fillRect(1, 0, 2, 1); ctx.fillRect(sz-3, 0, 2, 1);
+    ctx.fillRect(1, 1, 1, 1); ctx.fillRect(sz-2, 1, 1, 1);
+  } else if (frame.type==='spikes'){
+    // alternating spikes top
+    for (let x=1;x<sz-1;x+=2) ctx.fillRect(x, 0, 1, 2);
+  } else if (frame.type==='alien'){
+    // pair of antennae
+    ctx.fillRect(mid-2, 0, 1, 2); ctx.fillRect(mid+2, 0, 1, 2);
+  } else if (frame.type==='zombie'){
+    // dripping bottom
+    for (let i=1;i<sz-1;i+=3) ctx.fillRect(i, sz-1, 2, 1);
+    for (let i=2;i<sz-1;i+=4) ctx.fillRect(i, sz-2, 1, 1);
+  } else if (frame.type==='jungle'){
+    // vertical side bars
+    ctx.fillRect(0, 1, 1, sz-2); ctx.fillRect(sz-1, 1, 1, sz-2);
+  }
+}
+
+/* ============= PRESETS ============= */
+const PRESETS = {
+  CROWN:[
+    0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0,
+    0,0,1,0,0,1,0,0,1,0,
+    0,0,1,1,1,1,1,1,1,0,
+    0,0,1,0,1,0,1,0,1,0,
+    0,0,1,1,1,1,1,1,1,0,
+    0,0,1,1,1,1,1,1,1,0,
+    0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0
+  ],
+  SKULL:[
+    0,0,0,0,0,0,0,0,0,0,
+    0,0,0,1,1,1,1,0,0,0,
+    0,0,1,1,1,1,1,1,0,0,
+    0,0,1,0,1,1,0,1,0,0,
+    0,0,1,0,1,1,0,1,0,0,
+    0,0,1,1,1,1,1,1,0,0,
+    0,0,0,1,1,1,1,0,0,0,
+    0,0,1,0,1,0,1,0,0,0,
+    0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0
+  ],
+  HEART:[
+    0,0,0,0,0,0,0,0,0,0,
+    0,0,1,1,0,0,1,1,0,0,
+    0,1,1,1,1,1,1,1,1,0,
+    0,1,1,1,1,1,1,1,1,0,
+    0,1,1,1,1,1,1,1,1,0,
+    0,0,1,1,1,1,1,1,0,0,
+    0,0,0,1,1,1,1,0,0,0,
+    0,0,0,0,1,1,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0
+  ],
+  STAR:[
+    0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,1,1,0,0,0,0,
+    0,0,0,1,1,1,1,0,0,0,
+    0,1,1,1,1,1,1,1,1,0,
+    0,0,1,1,1,1,1,1,0,0,
+    0,0,0,1,1,1,1,0,0,0,
+    0,0,1,1,0,0,1,1,0,0,
+    0,1,1,0,0,0,0,1,1,0,
+    0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0
+  ],
+  BOLT:[
+    0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,1,1,0,0,0,
+    0,0,0,0,1,1,0,0,0,0,
+    0,0,0,1,1,1,1,0,0,0,
+    0,0,1,1,1,1,0,0,0,0,
+    0,0,0,0,1,1,0,0,0,0,
+    0,0,0,1,1,0,0,0,0,0,
+    0,0,1,1,0,0,0,0,0,0,
+    0,0,1,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0
+  ],
+  X:[
+    0,0,0,0,0,0,0,0,0,0,
+    0,1,1,0,0,0,0,1,1,0,
+    0,1,1,1,0,0,1,1,1,0,
+    0,0,1,1,1,1,1,1,0,0,
+    0,0,0,1,1,1,1,0,0,0,
+    0,0,0,1,1,1,1,0,0,0,
+    0,0,1,1,1,1,1,1,0,0,
+    0,1,1,1,0,0,1,1,1,0,
+    0,1,1,0,0,0,0,1,1,0,
+    0,0,0,0,0,0,0,0,0,0
+  ]
+};
+
+/* ============= STATE ============= */
+function defaultState(){
+  const zones = {};
+  for (const z of CITY) zones[z.id] = { tags:{} };
+  return {
+    wallet: null,
+    session: null,
+    holdings: [],
+    me: null,
+    zones,
+    energy: { value:RULES.ENERGY_MAX, lastRegenAt:Date.now() },
+    totalTagsPlaced: 0,
+    crew: null,
+    season: { id:1, startTs: Date.now(), endTs: Date.now() + RULES.SEASON_DURATION_MS, mySeasonScore: 0 },
+    notifications: [],
+    onboarded: false,
+    rateLimit: { actions: [] },
+    pushEnabled: false
+  };
+}
+function loadState(){
+  try{
+    const s = JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');
+    const base = defaultState();
+    return { ...base, ...s, zones: { ...base.zones, ...(s.zones||{}) }, energy: s.energy || base.energy, season: s.season || base.season, rateLimit: s.rateLimit || base.rateLimit };
+  }catch{ return defaultState(); }
+}
+function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+const state = loadState();
+
+/* ============= SESSIONS / SIWE ============= */
+function buildSiweMessage(addr){
+  const nonce = Math.random().toString(36).slice(2,12);
+  const issued = new Date().toISOString();
+  return `tagbattle.app wants you to sign in with your Ethereum account:
+${addr}
+
+By signing you confirm ownership for TAG Battle. No transaction. No gas.
+
+URI: https://tagbattle.app
+Version: 1
+Chain ID: 1
+Nonce: ${nonce}
+Issued At: ${issued}`;
+}
+async function signMessage(addr){
+  if (window.ethereum){
+    try {
+      const accs = await window.ethereum.request({ method:'eth_requestAccounts' });
+      const real = accs[0];
+      if (real && real.toLowerCase() !== addr.toLowerCase()){
+        addr = real;
+      }
+      const msg = buildSiweMessage(addr);
+      const sig = await window.ethereum.request({ method:'personal_sign', params:[msg, addr] });
+      return { addr: addr.toLowerCase(), msg, sig, real:true };
+    } catch(e){ /* fallthrough to mock */ }
+  }
+  const msg = buildSiweMessage(addr);
+  const mockSig = '0x' + Array.from({length:130},()=>Math.floor(Math.random()*16).toString(16)).join('');
+  return { addr: addr.toLowerCase(), msg, sig: mockSig, real:false };
+}
+function sessionValid(){
+  return state.session && state.session.expiresAt > Date.now();
+}
+
+/* ============= RATE LIMIT ============= */
+function rateCheck(type){
+  const now = Date.now();
+  state.rateLimit.actions = state.rateLimit.actions.filter(a => now - a.ts < RULES.RATE_WINDOW_MS);
+  if (state.rateLimit.actions.length >= RULES.RATE_MAX_ACTIONS){
+    document.getElementById('rateWarn').classList.add('show');
+    setTimeout(()=>document.getElementById('rateWarn').classList.remove('show'), 3000);
+    return false;
+  }
+  state.rateLimit.actions.push({ type, ts: now });
+  return true;
+}
+
+/* ============= DAILY HOTSPOT ============= */
+const getHotspotId = () => CITY[Math.floor(Date.now()/(24*60*60*1000)) % CITY.length].id;
+
+/* ============= HOLDER BONUS ============= */
+const holderBonus = () => Math.min(RULES.HOLDER_POWER_MAX, (state.holdings?.length||0) * RULES.HOLDER_POWER_PER_NORMIE);
+function effectivePower(){
+  let p = (state.me?.power||0) + holderBonus();
+  if (state.me?.boostUntil > Date.now()) p += 10;
+  return Math.min(100, p);
+}
+
+/* ============= DECAY ============= */
+function getFreshness(tag){
+  if (tag.shieldUntil && tag.shieldUntil > Date.now()) return 1;
+  return Math.max(0, 1 - (Date.now() - (tag.t||0)) / RULES.DECAY_DURATION_MS);
+}
+const isBurnt = tag => getFreshness(tag) <= 0;
+
+/* ============= ENERGY ============= */
+function getRegenMs(){
+  let bonus = controlledZonesByMe() * RULES.CONTROL_REGEN_BONUS;
+  if (currentZoneId === getHotspotId()) bonus += 0.25;
+  return Math.max(5000, RULES.ENERGY_REGEN_MS / (1 + bonus));
+}
+function updateEnergy(){
+  if (!state.me) return;
+  const now = Date.now(); const regenMs = getRegenMs();
+  let elapsed = now - state.energy.lastRegenAt;
+  while (elapsed >= regenMs && state.energy.value < RULES.ENERGY_MAX){
+    state.energy.value++; state.energy.lastRegenAt += regenMs; elapsed -= regenMs;
+  }
+  if (state.energy.value >= RULES.ENERGY_MAX) state.energy.lastRegenAt = now;
+  saveState();
+}
+function spendEnergy(n){
+  updateEnergy();
+  if (state.energy.value < n) return false;
+  if (state.energy.value === RULES.ENERGY_MAX) state.energy.lastRegenAt = Date.now();
+  state.energy.value -= n; saveState(); return true;
+}
+function energyTimeUntilNext(){
+  if (state.energy.value >= RULES.ENERGY_MAX) return 0;
+  return Math.max(0, getRegenMs() - (Date.now() - state.energy.lastRegenAt));
+}
+
+/* ============= NOTIFICATIONS ============= */
+function notify(type, message){
+  const n = { id: Date.now()+'_'+Math.random().toString(36).slice(2,7), type, message, ts: Date.now(), read: false };
+  state.notifications.unshift(n);
+  if (state.notifications.length > 50) state.notifications = state.notifications.slice(0,50);
+  saveState(); refreshNotifBadge();
+  if (state.pushEnabled && 'Notification' in window && Notification.permission === 'granted'){
+    try { new Notification('TAG Battle', { body: message, icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="%2348494b"/></svg>' }); } catch{}
+  }
+}
+function refreshNotifBadge(){
+  const unread = state.notifications.filter(n=>!n.read).length;
+  const dot = document.getElementById('notifDot');
+  if (unread > 0){ dot.style.display='flex'; dot.textContent = unread > 9 ? '9+' : unread; }
+  else dot.style.display='none';
+}
+function renderNotifList(){
+  const el = document.getElementById('notifList');
+  if (!state.notifications.length){ el.innerHTML = '<div class="notif-empty">No notifications yet</div>'; return; }
+  el.innerHTML = state.notifications.map(n=>{
+    const ago = (Date.now() - n.ts) / 1000;
+    const t = ago < 60 ? `${ago|0}s` : ago < 3600 ? `${(ago/60)|0}m` : ago < 86400 ? `${(ago/3600)|0}h` : `${(ago/86400)|0}d`;
+    return `<div class="notif-item ${n.read?'':'unread'}">${n.message}<div class="time">${t} ago</div></div>`;
+  }).join('');
+  state.notifications.forEach(n=>n.read=true); saveState(); refreshNotifBadge();
+}
+
+/* ============= SEASON ============= */
+function checkSeasonEnd(){
+  if (Date.now() >= state.season.endTs){
+    document.getElementById('seasonEndBody').innerHTML = `
+      <div style="font-size:34px;margin-bottom:6px">🏆</div>
+      <div>Season <b>${state.season.id}</b> finished.</div>
+      <div style="margin-top:8px">Score: <b>${state.season.mySeasonScore}</b></div>
+      <div style="font-size:11px;color:var(--mid);margin-top:6px">Walls reset · power persists · let's run it back.</div>`;
+    document.getElementById('seasonEndModal').classList.add('show');
+  }
+}
+function startNewSeason(){
+  state.season = { id: state.season.id + 1, startTs: Date.now(), endTs: Date.now() + RULES.SEASON_DURATION_MS, mySeasonScore: 0 };
+  for (const z of CITY) state.zones[z.id] = { tags: {} };
+  state.totalTagsPlaced = 0;
+  saveState(); refreshHud();
+  document.getElementById('seasonEndModal').classList.remove('show');
+  notify('season', `Season ${state.season.id} started · 14 days`);
+  go('city');
+}
+
+/* ============= ROUTING ============= */
+const VIEWS = {gate:'viewGate', home:'viewHome', editor:'viewEditor', city:'viewCity', zone:'viewZone'};
+let currentZoneId = null;
+function go(view, opts={}){
+  // Tear down any active real-time zone subscription before switching views
+  if (zoneUnsub) { zoneUnsub(); zoneUnsub = null; }
+
+  Object.values(VIEWS).forEach(id=>document.getElementById(id).classList.remove('active'));
+  document.getElementById(VIEWS[view]).classList.add('active');
+  document.getElementById('globalBar').style.display = (state.me && view!=='gate') ? 'flex' : 'none';
+  if (view==='editor') renderEditor();
+  if (view==='city')   renderCity();
+  if (view==='zone')   {
+    currentZoneId = opts.zoneId || currentZoneId;
+    renderZone();
+    // Subscribe to live updates for this zone from the backend
+    if (Backend) {
+      const zid = currentZoneId;
+      zoneUnsub = Backend.onZone(zid, (tags) => {
+        if (!state.zones[zid]) state.zones[zid] = { tags:{} };
+        state.zones[zid].tags = tags;
+        // Only re-render if we're still on this zone
+        if (currentZoneId === zid && document.getElementById('viewZone').classList.contains('active')) {
+          renderZone();
+        }
+      });
+    }
+  }
+  if (view==='home')   refreshWalletPill();
+  document.querySelector('main').scrollTop = 0;
+}
+function toast(msg, ms=2200){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),ms);
+}
+const shortAddr = a => a ? `${a.slice(0,6)}…${a.slice(-4)}` : '';
+
+/* ═══════ MICRO-UPGRADES — visual fx helpers ═══════ */
+function spawnParticles(targetEl, count=12){
+  if (!targetEl || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const r = targetEl.getBoundingClientRect();
+  const cx = r.left + r.width/2, cy = r.top + r.height/2;
+  const wrap = document.createElement('div');
+  wrap.className = 'particle-burst';
+  wrap.style.cssText = `left:${cx}px;top:${cy}px`;
+  for (let i = 0; i < count; i++){
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const ang = (i / count) * Math.PI * 2 + Math.random()*.4;
+    const dist = 35 + Math.random() * 35;
+    p.style.setProperty('--tx', `${Math.cos(ang)*dist}px`);
+    p.style.setProperty('--ty', `${Math.sin(ang)*dist}px`);
+    p.style.setProperty('--rot', `${(Math.random()*2-1)*360}deg`);
+    p.style.setProperty('--delay', `${Math.random()*80}ms`);
+    wrap.appendChild(p);
+  }
+  document.body.appendChild(wrap);
+  setTimeout(() => wrap.remove(), 900);
+}
+function flashPlace(slot){
+  requestAnimationFrame(() => {
+    const el = document.querySelector(`.placed-tag[data-slot="${slot}"]`);
+    if (!el) return;
+    el.classList.add('fresh-place');
+    spawnParticles(el, 14);
+    setTimeout(() => el.classList.remove('fresh-place'), 500);
+  });
+}
+const fmtTime = ms => { const s = Math.max(0, ms/1000); const d = s/86400|0, h=(s%86400)/3600|0, m=(s%3600)/60|0; return d>0?`${d}D ${h}H`:h>0?`${h}H ${m}M`:`${m}M`; };
+
+/* ============= BRICK TEXTURE ============= */
+function generateBrickTexture(){
+  const W=480, H=192;
+  const c=document.createElement('canvas'); c.width=W; c.height=H;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#7a6655'; ctx.fillRect(0,0,W,H);
+  const bw=60, bh=22, gap=3;
+  const seed=(x,y)=>Math.abs(Math.sin(x*12.9898+y*78.233)*43758.5453)%1;
+  for (let row=0,y=-bh; y<H+bh; row++,y+=bh+gap){
+    const off=(row%2)*(bw/2);
+    for (let x=-bw+off; x<W+bw; x+=bw+gap){
+      const v=(seed(x,y)-0.5)*18;
+      const r=Math.max(150,Math.min(225,205+v));
+      const g=Math.max(130,Math.min(205,182+v*.9));
+      const b=Math.max(110,Math.min(185,163+v*.8));
+      ctx.fillStyle=`rgb(${r|0},${g|0},${b|0})`;
+      ctx.beginPath();
+      const rad=2.5;
+      ctx.moveTo(x+rad,y); ctx.lineTo(x+bw-rad,y);
+      ctx.quadraticCurveTo(x+bw,y,x+bw,y+rad);
+      ctx.lineTo(x+bw,y+bh-rad);
+      ctx.quadraticCurveTo(x+bw,y+bh,x+bw-rad,y+bh);
+      ctx.lineTo(x+rad,y+bh);
+      ctx.quadraticCurveTo(x,y+bh,x,y+bh-rad);
+      ctx.lineTo(x,y+rad);
+      ctx.quadraticCurveTo(x,y,x+rad,y);
+      ctx.fill();
+      const grad=ctx.createLinearGradient(x,y,x+bw,y+bh);
+      grad.addColorStop(0,'rgba(255,250,235,.35)');
+      grad.addColorStop(.4,'rgba(255,250,235,0)');
+      grad.addColorStop(.7,'rgba(0,0,0,0)');
+      grad.addColorStop(1,'rgba(0,0,0,.22)');
+      ctx.fillStyle=grad; ctx.fill();
+      ctx.fillStyle='rgba(255,250,235,.45)'; ctx.fillRect(x+1,y+1,bw-2,1);
+      ctx.fillStyle='rgba(0,0,0,.28)'; ctx.fillRect(x+1,y+bh-1,bw-1,1); ctx.fillRect(x+bw-1,y+1,1,bh-1);
+      const s1=seed(x+1,y+3);
+      if (s1>.85){
+        ctx.fillStyle=`rgba(72,73,75,${.06+s1*.12})`;
+        const ix=x+s1*(bw-8), iy=y+((s1*7)%1)*(bh-4);
+        ctx.beginPath(); ctx.ellipse(ix,iy,2+s1*4,1+s1*2,0,0,Math.PI*2); ctx.fill();
+      }
+    }
+  }
+  for (let i=0;i<14;i++){
+    const px=Math.random()*W, py=Math.random()*H, r=30+Math.random()*60;
+    const grad=ctx.createRadialGradient(px,py,0,px,py,r);
+    grad.addColorStop(0,'rgba(255,250,235,.10)'); grad.addColorStop(1,'rgba(255,250,235,0)');
+    ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(px,py,r,0,Math.PI*2); ctx.fill();
+  }
+  return c.toDataURL('image/png');
+}
+
+/* ============= GATE ============= */
+const gateMsg = document.getElementById('gateMsg');
+const holdingsList = document.getElementById('holdingsList');
+const holdingsGrid = document.getElementById('holdingsGrid');
+const btnConnectWallet = document.getElementById('btnConnectWallet');
+const CONNECT_LABEL = '⬢ CONNECT WALLET';
+
+const provider = () => window.ethereum;
+
+// Reset on wallet account or chain change
+if (provider()){
+  provider().on?.('accountsChanged', accs => {
+    if (!accs || accs.length === 0){
+      state.session = null; state.wallet = null; state.holdings = []; saveState();
+      go('gate');
+      toast('Wallet disconnected');
+    } else if (state.wallet && accs[0].toLowerCase() !== state.wallet.address){
+      // Different account selected — force re-auth
+      state.session = null; state.wallet = null; state.me = null; state.holdings = []; saveState();
+      go('gate');
+      toast('Account changed — sign in again');
+    }
+  });
+  provider().on?.('chainChanged', () => location.reload());
+}
+
+btnConnectWallet.onclick = async ()=>{
+  if (!provider()){
+    gateMsg.style.color='var(--warn)';
+    gateMsg.innerHTML='No wallet detected · <a href="https://metamask.io/download/" target="_blank" rel="noopener" style="color:var(--fg);text-decoration:underline;font-weight:700">install MetaMask</a>';
+    return;
+  }
+  btnConnectWallet.disabled=true;
+  btnConnectWallet.innerHTML='<span class="loading"></span> CONNECTING…';
+  gateMsg.style.color='var(--mid)';
+  gateMsg.textContent='waiting for wallet approval…';
+  let addr;
+  try{
+    const accs = await provider().request({ method:'eth_requestAccounts' });
+    addr = (accs && accs[0]) ? accs[0].toLowerCase() : null;
+    if (!addr) throw new Error('no account');
+  } catch(e){
+    gateMsg.style.color='var(--warn)';
+    gateMsg.textContent = e.code === 4001 ? 'Connection rejected' : 'Could not connect';
+    btnConnectWallet.disabled=false; btnConnectWallet.innerHTML=CONNECT_LABEL;
+    return;
+  }
+  // Encourage Ethereum mainnet (where Normies live)
+  try{
+    const cid = await provider().request({ method:'eth_chainId' });
+    if (cid !== '0x1'){
+      gateMsg.textContent='switching to Ethereum mainnet…';
+      try{
+        await provider().request({ method:'wallet_switchEthereumChain', params:[{ chainId:'0x1' }] });
+      } catch(switchErr){
+        gateMsg.style.color='var(--warn)';
+        gateMsg.textContent='Switch to Ethereum mainnet to continue';
+        btnConnectWallet.disabled=false; btnConnectWallet.innerHTML=CONNECT_LABEL;
+        return;
+      }
+    }
+  } catch{}
+  gateMsg.style.color='var(--mid)';
+  gateMsg.textContent='signing in with ethereum…';
+  try{
+    const sigData = await signMessage(addr);
+    state.session = { addr: sigData.addr, msg: sigData.msg, sig: sigData.sig, real: sigData.real, expiresAt: Date.now() + RULES.SESSION_TTL_MS };
+    state.wallet = { address: sigData.addr };
+    gateMsg.textContent = 'verifying on-chain ownership…';
+    // If backend is online, route auth + holdings through it (server-verified)
+    let tokens = [];
+    if (Backend) {
+      const result = await Backend.signIn(sigData.msg, sigData.sig);
+      tokens = result.holdings || [];
+    } else {
+      const data = await fetchHoldings(sigData.addr);
+      tokens = (data.tokenIds||[]).map(x=>parseInt(x,10)).filter(n=>!isNaN(n));
+    }
+    state.holdings = tokens; saveState();
+    if (tokens.length === 0){
+      gateMsg.style.color='var(--warn)';
+      gateMsg.textContent=`No Normies in ${shortAddr(addr)} · you need one to play`;
+    } else {
+      gateMsg.style.color='var(--ok)';
+      gateMsg.textContent=`✓ ${tokens.length} Normie${tokens.length>1?'s':''} verified · +${holderBonus()} power`;
+      renderHoldings(tokens);
+    }
+  } catch(e){
+    gateMsg.style.color='var(--warn)';
+    gateMsg.textContent = e.code === 4001 ? 'Signature rejected' : 'Failed: ' + e.message;
+  } finally {
+    btnConnectWallet.disabled=false;
+    btnConnectWallet.innerHTML=CONNECT_LABEL;
+  }
+};
+function renderHoldings(tokens){
+  holdingsList.style.display='block';
+  holdingsGrid.innerHTML = tokens.slice(0,60).map(id=>`
+    <button class="holding-chip" data-id="${id}"><img src="${pngUrl(id)}" alt=""><span>#${id}</span></button>`).join('');
+  holdingsGrid.querySelectorAll('.holding-chip').forEach(b=>{
+    b.onclick = ()=>{ document.getElementById('normieIdInput').value=b.dataset.id; go('home'); loadNormie(); };
+  });
+}
+document.getElementById('btnGuestPreview').onclick = ()=>{
+  state.wallet = { address: '0xguestpreview', isGuest: true };
+  state.session = { addr:'guest', expiresAt: Date.now()+RULES.SESSION_TTL_MS, real:false };
+  state.holdings = []; saveState(); refreshHud(); go('home');
+};
+function refreshWalletPill(){
+  document.getElementById('walletAddrShort').textContent = state.wallet?.isGuest ? 'GUEST PREVIEW' : shortAddr(state.wallet?.address);
+}
+
+/* ============= HOME ============= */
+const idInput = document.getElementById('normieIdInput');
+const previewCard = document.getElementById('previewCard');
+let pendingNormie = null;
+
+document.getElementById('btnRandom').onclick = ()=>{ idInput.value = Math.floor(Math.random()*10000); loadNormie(); };
+document.getElementById('btnLoadNormie').onclick = loadNormie;
+idInput.addEventListener('keydown', e=>{ if(e.key==='Enter') loadNormie(); });
+
+async function loadNormie(){
+  const id = parseInt(idInput.value, 10);
+  if (isNaN(id)||id<0||id>9999){ toast('Invalid ID (0–9999)'); return; }
+  const btn=document.getElementById('btnLoadNormie');
+  btn.disabled=true; btn.innerHTML='<span class="loading"></span>';
+  try{
+    const meta = await fetchMetadata(id);
+    const power = calcPower(meta.attributes);
+    const frame = deriveFrame(meta.attributes);
+    pendingNormie = { id, attrs: meta.attributes, power, meta, frame };
+    document.getElementById('previewImg').src = pngUrl(id);
+    const level = meta.attributes.find(a=>a.trait_type==='Level')?.value ?? 1;
+    const pxCount = meta.attributes.find(a=>a.trait_type==='Pixel Count')?.value ?? '—';
+    const customized = meta.attributes.find(a=>a.trait_type==='Customized')?.value ?? 'No';
+    let ap = '—';
+    try { const ci = await fetchCanvasInfo(id); ap = ci.actionPoints ?? 0; pendingNormie.actionPoints = ap; pendingNormie.canvasLevel = ci.level; } catch{}
+    document.getElementById('previewMeta').innerHTML = `
+      <div>LEVEL<b>${level}</b></div>
+      <div>PIXELS<b>${pxCount}</b></div>
+      <div>AP<b>${ap}</b></div>
+      <div>FRAME<b style="text-transform:uppercase;font-size:10px">${frame.type}</b></div>`;
+    const coreTraits = meta.attributes.filter(a => !['Level','Pixel Count','Action Points','Customized'].includes(a.trait_type));
+    document.getElementById('previewTraits').innerHTML =
+      coreTraits.map(a=>`<div><b>${a.trait_type}</b>${a.value}</div>`).join('');
+    const bonus = holderBonus();
+    document.getElementById('previewPower').textContent = `POWER ${power}${bonus?' +'+bonus:''} · ${powerLabel(power+bonus)}`;
+    const ownerEl = document.getElementById('ownerLine');
+    ownerEl.textContent = 'checking owner…';
+    try{
+      const own = await fetchOwner(id);
+      const youOwn = state.wallet?.address && own.owner?.toLowerCase() === state.wallet.address.toLowerCase();
+      ownerEl.textContent = youOwn ? `✓ OWNED BY YOU · ${shortAddr(own.owner)}` : `OWNER · ${shortAddr(own.owner)}`;
+      ownerEl.style.color = youOwn ? 'var(--ok)' : 'var(--mid)';
+    } catch{ ownerEl.textContent = ''; }
+    previewCard.classList.add('show');
+  } catch(e){ toast('API error · ' + e.message); }
+  finally{ btn.disabled=false; btn.textContent='LOAD'; }
+}
+document.getElementById('btnConfirm').onclick = async ()=>{
+  if (!pendingNormie){
+    const id = parseInt(idInput.value, 10);
+    if (isNaN(id)){ toast('Load a Normie first'); return; }
+    try { const meta = await fetchMetadata(id); pendingNormie = { id, attrs:meta.attributes, power:calcPower(meta.attributes), meta, frame:deriveFrame(meta.attributes) }; }
+    catch(e){ toast(e.message); return; }
+  }
+  state.me = {
+    owner: `n${pendingNormie.id}`,
+    name: `Normie #${pendingNormie.id}`,
+    normieId: pendingNormie.id,
+    power: pendingNormie.power,
+    frame: pendingNormie.frame,
+    actionPoints: pendingNormie.actionPoints || 0,
+    tag: null,
+    boostUntil: 0
+  };
+  saveState(); refreshHud();
+  if (!state.onboarded) startTutorial();
+  else go('editor');
+};
+
+/* ============= EDITOR ============= */
+const tagGrid = document.getElementById('tagGrid');
+let tagPixels = new Array(TAG_CELLS).fill(0);
+let drawing=false, drawValue=1;
+function buildEditorGrid(){
+  tagGrid.innerHTML='';
+  for(let i=0;i<TAG_CELLS;i++){
+    const c=document.createElement('div');
+    c.className='cell'; c.dataset.i=i;
+    c.addEventListener('mousedown',e=>{drawing=true;drawValue=tagPixels[i]?0:1;setPixel(i,drawValue);e.preventDefault()});
+    c.addEventListener('mouseenter',()=>{if(drawing)setPixel(i,drawValue)});
+    c.addEventListener('touchstart',e=>{drawing=true;drawValue=tagPixels[i]?0:1;setPixel(i,drawValue);e.preventDefault()},{passive:false});
+    c.addEventListener('touchmove',e=>{
+      const t=e.touches[0]; const el=document.elementFromPoint(t.clientX,t.clientY);
+      if (el && el.classList.contains('cell')) setPixel(parseInt(el.dataset.i,10), drawValue);
+    },{passive:true});
+    tagGrid.appendChild(c);
+  }
+}
+window.addEventListener('mouseup',()=>drawing=false);
+window.addEventListener('touchend',()=>drawing=false);
+function setPixel(i,v){
+  if(v===1&&tagPixels[i]===0){
+    if(tagPixels.reduce((a,b)=>a+b,0) >= RULES.MAX_PIXELS){ toast(`Max ${RULES.MAX_PIXELS} pixels`); return; }
+  }
+  tagPixels[i]=v; tagGrid.children[i]?.classList.toggle('on', v===1); updateCounter();
+}
+function updateCounter(){
+  const used=tagPixels.reduce((a,b)=>a+b,0);
+  const el=document.getElementById('pixelCounter');
+  el.textContent=`${used} / ${RULES.MAX_PIXELS} PX`;
+  el.classList.toggle('full', used>=RULES.MAX_PIXELS);
+}
+const refreshFromArray = ()=>{ for(let i=0;i<TAG_CELLS;i++) tagGrid.children[i]?.classList.toggle('on', tagPixels[i]===1); };
+document.getElementById('btnClear').onclick=()=>{ tagPixels.fill(0); refreshFromArray(); updateCounter(); };
+function buildPresets(){
+  const list=document.getElementById('presetList'); list.innerHTML='';
+  for(const [name,arr] of Object.entries(PRESETS)){
+    const total=arr.reduce((a,b)=>a+b,0);
+    const b=document.createElement('button');
+    b.innerHTML=`${name}<span>${total}px</span>`;
+    b.onclick=()=>{ tagPixels=arr.slice(); refreshFromArray(); updateCounter(); };
+    list.appendChild(b);
+  }
+}
+function renderEditor(){
+  buildEditorGrid(); buildPresets();
+  if(state.me?.tag) tagPixels=state.me.tag.slice();
+  refreshFromArray(); updateCounter();
+  const info=document.getElementById('editorNormieInfo');
+  if(state.me){
+    const bonus = holderBonus();
+    info.innerHTML=`
+      <div class="normie-portrait">
+        <img src="${pngUrl(state.me.normieId)}" alt="">
+      </div>
+      <div style="margin-top:8px;font-size:13px;text-align:center;font-weight:800">${state.me.name}</div>
+      <div class="power-bar" style="margin-top:6px">POWER ${state.me.power}${bonus?' +'+bonus:''} · ${powerLabel(state.me.power+bonus)}</div>`;
+  }
+  // Frame preview
+  const fInfo = document.getElementById('frameInfo');
+  if (state.me?.frame){
+    const cv = document.createElement('canvas'); cv.className='frame-preview';
+    const samplePixels = state.me.tag || PRESETS.STAR;
+    tagToCanvas(cv, samplePixels, state.me.frame);
+    fInfo.innerHTML = `<div style="text-align:center"><div style="font-size:10px;color:var(--mid);letter-spacing:1px;text-transform:uppercase;font-weight:700">${state.me.frame.type}</div></div>`;
+    fInfo.appendChild(cv);
+    fInfo.firstElementChild.style.cssText = 'text-align:center';
+  }
+}
+document.getElementById('btnConfirmTag').onclick=()=>{
+  const used=tagPixels.reduce((a,b)=>a+b,0);
+  if(used<3){ toast('Draw at least 3 pixels'); return; }
+  if(!state.me){ toast('Pick a Normie first'); return; }
+  state.me.tag=tagPixels.slice(); saveState(); go('city');
+  toast('Tag saved · pick a neighborhood');
+};
+
+/* ============= STATS ============= */
+function getZoneStats(zoneId){
+  const tags = Object.values(state.zones[zoneId].tags||{});
+  if (tags.length===0) return { total:0, leader:null, leaderOwner:null, leaderPct:0, count:0 };
+  const byOwner = {};
+  for (const t of tags){
+    if (!byOwner[t.owner]) byOwner[t.owner] = { points:0, name:t.name, normieId:t.normieId, pixels:t.pixels, frame:t.frame };
+    byOwner[t.owner].points++;
+  }
+  let leader=null, leaderOwner=null, lp=0;
+  for (const [own,d] of Object.entries(byOwner)) if (d.points>lp){ lp=d.points; leader=d; leaderOwner=own; }
+  return { total:tags.length, leader, leaderOwner, leaderPct: Math.round(lp/tags.length*100), count:tags.length };
+}
+const getZoneController = id => { const s=getZoneStats(id); return s.leaderPct>=RULES.CONTROL_THRESHOLD ? s.leaderOwner : null; };
+const controlledZonesByMe = () => state.me ? CITY.filter(z=>getZoneController(z.id)===state.me.owner).length : 0;
+const myActiveTags = () => state.me ? CITY.reduce((sum,z)=>sum+Object.values(state.zones[z.id].tags).filter(t=>t.owner===state.me.owner).length,0) : 0;
+
+/* ============= ISO CITY ============= */
+const ISO_TILE = { w:220, d:160 };
+const ISO_OFF  = { x:600, y:100 };
+const iso = (x,y,z) => [ (x-y)*0.866 + ISO_OFF.x, (x+y)*0.5 - z + ISO_OFF.y ];
+function buildIsoZonePath(zone){
+  const t = ZONE_TYPES[zone.type];
+  const w=ISO_TILE.w, d=ISO_TILE.d, h=t.iso_h;
+  const x0=zone.gx*w, y0=zone.gy*d, x1=x0+w*0.92, y1=y0+d*0.92;
+  const A=iso(x0,y0,0),B=iso(x1,y0,0),C=iso(x1,y1,0),D=iso(x0,y1,0);
+  const Ah=iso(x0,y0,h),Bh=iso(x1,y0,h),Ch=iso(x1,y1,h),Dh=iso(x0,y1,h);
+  return { top:[Ah,Bh,Ch,Dh], front:[D,C,Ch,Dh], right:[B,C,Ch,Bh], centerTop:[(Ah[0]+Ch[0])/2,(Ah[1]+Ch[1])/2] };
+}
+function renderCity(){
+  const svg = document.getElementById('cityMap');
+  const sorted = [...CITY].sort((a,b)=> (a.gx+a.gy) - (b.gx+b.gy));
+  const hotspot = getHotspotId();
+  const parts = [];
+  parts.push(`<defs>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#dcdedd"/><stop offset="100%" stop-color="#aeb1af"/></linearGradient>
+    <linearGradient id="topNeutral" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#fafafa"/><stop offset="100%" stop-color="#e3e5e4"/></linearGradient>
+    <linearGradient id="topMine" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#48494b"/><stop offset="100%" stop-color="#2d2e30"/></linearGradient>
+    <linearGradient id="topRival" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#9a9b9d"/><stop offset="100%" stop-color="#6b6d6f"/></linearGradient>
+    <linearGradient id="topContested" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#c4c5c4"/><stop offset="100%" stop-color="#9a9b9d"/></linearGradient>
+    <pattern id="halftone" x="0" y="0" width="9" height="9" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.4" fill="rgba(72,73,75,.45)"/></pattern>
+    <pattern id="stripes" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="3" height="8" fill="rgba(0,0,0,.18)"/></pattern>
+    <radialGradient id="hotRing" cx=".5" cy=".5" r=".5"><stop offset="60%" stop-color="rgba(72,73,75,0)"/><stop offset="80%" stop-color="rgba(72,73,75,.35)"/><stop offset="100%" stop-color="rgba(72,73,75,0)"/></radialGradient>
+  </defs>`);
+  const G1=iso(-30,-30,0), G2=iso(3*ISO_TILE.w+30,-30,0), G3=iso(3*ISO_TILE.w+30,3*ISO_TILE.d+30,0), G4=iso(-30,3*ISO_TILE.d+30,0);
+  parts.push(`<polygon points="${[G1,G2,G3,G4].map(p=>p.join(',')).join(' ')}" fill="url(#ground)"/>`);
+  for (let i=0;i<=3;i++){
+    const a=iso(i*ISO_TILE.w,0,0), b=iso(i*ISO_TILE.w,3*ISO_TILE.d,0);
+    parts.push(`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#48494b" stroke-width="1" opacity=".18"/>`);
+    const c=iso(0,i*ISO_TILE.d,0), e=iso(3*ISO_TILE.w,i*ISO_TILE.d,0);
+    parts.push(`<line x1="${c[0]}" y1="${c[1]}" x2="${e[0]}" y2="${e[1]}" stroke="#48494b" stroke-width="1" opacity=".18"/>`);
+  }
+  for (const z of sorted){
+    const path = buildIsoZonePath(z);
+    const stats = getZoneStats(z.id);
+    const controller = getZoneController(z.id);
+    const isMe = controller && controller === state.me?.owner;
+    const isRival = controller && !isMe;
+    const isContested = !controller && stats.count > 0;
+    const isHot = z.id === hotspot;
+    let topGrad, frontFill, rightFill, topOverlay='';
+    if (isMe){      topGrad='url(#topMine)';      frontFill='#1a1a1c'; rightFill='#0d0d0e'; }
+    else if (isRival){ topGrad='url(#topRival)'; frontFill='#48494b'; rightFill='#2d2e30'; topOverlay='url(#stripes)'; }
+    else if (isContested){ topGrad='url(#topContested)'; frontFill='#6b6d6f'; rightFill='#48494b'; topOverlay='url(#halftone)'; }
+    else { topGrad='url(#topNeutral)'; frontFill='#9a9b9d'; rightFill='#6b6d6f'; }
+    parts.push(`<g class="iso-zone${isHot?' hotspot-radiate':''}" data-zone="${z.id}" tabindex="0">`);
+    if (isHot){
+      const [cx,cy]=path.centerTop;
+      parts.push(`<ellipse cx="${cx}" cy="${cy}" rx="140" ry="70" fill="url(#hotRing)"/>`);
+    }
+    const sa=iso(z.gx*ISO_TILE.w,z.gy*ISO_TILE.d,0);
+    const sb=iso(z.gx*ISO_TILE.w+ISO_TILE.w*0.92,z.gy*ISO_TILE.d,0);
+    const sc=iso(z.gx*ISO_TILE.w+ISO_TILE.w*0.92,z.gy*ISO_TILE.d+ISO_TILE.d*0.92,0);
+    const sd=iso(z.gx*ISO_TILE.w,z.gy*ISO_TILE.d+ISO_TILE.d*0.92,0);
+    parts.push(`<polygon points="${[sa,sb,sc,sd].map(p=>(p[0]+10)+','+(p[1]+12)).join(' ')}" fill="#48494b" opacity=".22"/>`);
+    parts.push(`<polygon points="${path.right.map(p=>p.join(',')).join(' ')}" fill="${rightFill}" stroke="#48494b" stroke-width="1.5"/>`);
+    {
+      const [B0,C0,C1,B1]=path.right; const steps=Math.max(4,Math.floor(ZONE_TYPES[z.type].iso_h/12));
+      for (let i=1;i<steps;i++){
+        const t=i/steps;
+        const pa=[B0[0]+(B1[0]-B0[0])*t,B0[1]+(B1[1]-B0[1])*t];
+        const pb=[C0[0]+(C1[0]-C0[0])*t,C0[1]+(C1[1]-C0[1])*t];
+        parts.push(`<line x1="${pa[0]}" y1="${pa[1]}" x2="${pb[0]}" y2="${pb[1]}" stroke="#000" stroke-width=".7" opacity=".35"/>`);
+      }
+    }
+    parts.push(`<polygon points="${path.front.map(p=>p.join(',')).join(' ')}" fill="${frontFill}" stroke="#48494b" stroke-width="1.5"/>`);
+    {
+      const [D0,C0,C1,D1]=path.front; const steps=Math.max(4,Math.floor(ZONE_TYPES[z.type].iso_h/12));
+      for (let i=1;i<steps;i++){
+        const t=i/steps;
+        const pa=[D0[0]+(D1[0]-D0[0])*t,D0[1]+(D1[1]-D0[1])*t];
+        const pb=[C0[0]+(C1[0]-C0[0])*t,C0[1]+(C1[1]-C0[1])*t];
+        parts.push(`<line x1="${pa[0]}" y1="${pa[1]}" x2="${pb[0]}" y2="${pb[1]}" stroke="#000" stroke-width=".7" opacity=".35"/>`);
+      }
+    }
+    const topStroke = isHot ? '#000' : '#48494b';
+    const topStrokeW = isHot ? '3' : '1.5';
+    parts.push(`<polygon points="${path.top.map(p=>p.join(',')).join(' ')}" fill="${topGrad}" stroke="${topStroke}" stroke-width="${topStrokeW}"/>`);
+    if (topOverlay){
+      parts.push(`<polygon points="${path.top.map(p=>p.join(',')).join(' ')}" fill="${topOverlay}" stroke="none" pointer-events="none"/>`);
+    }
+    parts.push(`<polygon points="${[path.top[0],path.top[1],[path.top[1][0]-10,path.top[1][1]+6],[path.top[0][0]+10,path.top[0][1]+6]].map(p=>p.join(',')).join(' ')}" fill="rgba(255,255,255,.25)" pointer-events="none"/>`);
+    const [cx, cy] = path.centerTop;
+    const labelColor = (isMe||isRival) ? '#fff' : '#48494b';
+    const subColor   = (isMe||isRival) ? 'rgba(255,255,255,.85)' : '#6b6d6f';
+    if (isHot){
+      parts.push(`<text class="iso-zone-label hotspot-flame" x="${cx-78}" y="${cy-8}" text-anchor="middle" font-size="18">🔥</text>`);
+    }
+    parts.push(`<text class="iso-zone-label" x="${cx}" y="${cy-9}" text-anchor="middle" font-size="14" fill="${labelColor}" style="paint-order:stroke;stroke:${(isMe||isRival||isContested)?'rgba(0,0,0,.4)':'rgba(255,255,255,.6)'};stroke-width:2">${z.name}</text>`);
+    parts.push(`<text class="iso-zone-sub" x="${cx}" y="${cy+5}" text-anchor="middle" font-size="9" fill="${subColor}">${ZONE_TYPES[z.type].label} · ${ZONE_TYPES[z.type].cols*ZONE_TYPES[z.type].rows} SLOTS</text>`);
+    if (stats.count>0){
+      parts.push(`<text class="iso-zone-stat" x="${cx}" y="${cy+19}" text-anchor="middle" font-size="11" fill="${labelColor}">${stats.leaderPct}% · ${stats.count} TAGS</text>`);
+    } else {
+      parts.push(`<text class="iso-zone-stat" x="${cx}" y="${cy+19}" text-anchor="middle" font-size="9" fill="${subColor}" opacity=".7">— EMPTY —</text>`);
+    }
+    parts.push(`</g>`);
+  }
+  svg.innerHTML = parts.join('');
+  svg.querySelectorAll('.iso-zone').forEach(g=>{
+    g.addEventListener('click', ()=> go('zone', { zoneId: g.dataset.zone }));
+    g.addEventListener('keydown', e=>{ if(e.key==='Enter') go('zone',{zoneId:g.dataset.zone}); });
+  });
+  document.getElementById('hotspotName').textContent = CITY.find(z=>z.id===hotspot).name;
+}
+document.getElementById('btnEditTagFromCity').onclick = ()=>go('editor');
+
+/* ============= ZONE / WALL ============= */
+function tagToCanvas(canvas, pixels, frame){
+  // WYSIWYG — render the full 10×10 grid 1:1 with the editor.
+  // No auto-crop, no recentering. The pixel position the user paints is
+  // exactly the pixel position rendered on the wall.
+  const hasFrame = frame && frame.type !== 'plain';
+  const off = hasFrame ? 2 : 0;
+  const padded = TAG_GRID + (hasFrame ? 4 : 0);
+  canvas.width = padded; canvas.height = padded;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = '#e3e5e4'; ctx.fillRect(0, 0, padded, padded);
+  ctx.fillStyle = '#48494b';
+  for (let i = 0; i < TAG_CELLS; i++) {
+    if (pixels[i]) ctx.fillRect((i % TAG_GRID) + off, Math.floor(i / TAG_GRID) + off, 1, 1);
+  }
+  if (hasFrame) drawFrameOnTag(canvas, frame);
+}
+
+function renderZone(){
+  const z = CITY.find(z=>z.id===currentZoneId);
+  if (!z) return go('city');
+  const zt = ZONE_TYPES[z.type];
+  const stats = getZoneStats(z.id);
+  const isHot = z.id === getHotspotId();
+
+  document.getElementById('zoneTitle').textContent = z.name;
+  document.getElementById('bcZoneType').textContent = zt.label;
+  document.getElementById('zoneCapacity').textContent = `${zt.label} · ${zt.cols} × ${zt.rows} = ${zt.cols*zt.rows} SLOTS`;
+  document.getElementById('zoneOccupancy').textContent = `${stats.count} / ${zt.cols*zt.rows} TAGS`;
+  document.getElementById('zoneHotspot').style.display = isHot ? 'block' : 'none';
+
+  let ctrlText='CONTESTED', barW=stats.leaderPct, barColor='var(--mid)';
+  if (stats.leaderPct>=RULES.CONTROL_THRESHOLD && stats.leader){
+    const isMe = stats.leaderOwner===state.me?.owner;
+    ctrlText = `${stats.leader.name} · ${stats.leaderPct}%`;
+    barColor = isMe ? 'var(--gold)' : 'var(--rust)';
+  } else if (stats.count===0){ ctrlText='EMPTY · BE FIRST'; barW=0; }
+  else { ctrlText = `${stats.leader?.name} · ${stats.leaderPct}%`; }
+  document.getElementById('zoneControl').textContent = ctrlText;
+  const bar = document.getElementById('zoneCtrlBar');
+  bar.style.width=barW+'%'; bar.style.background=barColor;
+
+  const frame = document.getElementById('wallFrame');
+  const wall  = document.getElementById('zoneWall');
+  frame.style.setProperty('--cols', zt.cols);
+  frame.style.setProperty('--rows', zt.rows);
+  wall.style.setProperty('--cols', zt.cols);
+  wall.style.setProperty('--rows', zt.rows);
+
+  wall.innerHTML='';
+  for (let r=0; r<zt.rows; r++) for (let c=0; c<zt.cols; c++){
+    const cell = document.createElement('div');
+    cell.className='wall-slot';
+    wall.appendChild(cell);
+  }
+  const tags = state.zones[z.id].tags;
+  for (const [key,t] of Object.entries(tags)){
+    const [tr,tc] = key.split(',').map(Number);
+    const fresh = getFreshness(t);
+    const burnt = fresh <= 0;
+    const decayed = fresh > 0 && fresh < 0.4;
+    const shielded = t.shieldUntil && t.shieldUntil > Date.now();
+    const el = document.createElement('div');
+    let cls = 'placed-tag';
+    if (t.owner===state.me?.owner) cls += ' mine';
+    else if (t.crewId && state.crew && t.crewId === state.crew.id) cls += ' crew';
+    if (decayed) cls += ' decayed';
+    if (burnt) cls += ' burnt';
+    if (shielded) cls += ' shielded';
+    el.className = cls;
+    el.style.pointerEvents = 'none';
+    el.dataset.slot = key;
+    if (t.crewColor) el.style.setProperty('--crewColor', t.crewColor);
+    el.style.gridRow = `${tr+1}`; el.style.gridColumn = `${tc+1}`;
+    const cv = document.createElement('canvas');
+    tagToCanvas(cv, t.pixels, t.frame);
+    el.appendChild(cv);
+    const sig = document.createElement('div');
+    sig.className = 'signature';
+    sig.textContent = t.crewTag ? `[${t.crewTag}] #${t.normieId}` : `#${t.normieId}`;
+    el.appendChild(sig);
+    wall.appendChild(el);
+  }
+
+  // Coordinate-based hit testing — single source of truth, pixel-perfect.
+  // Click anywhere on the grid → r,c computed from cursor position relative
+  // to the grid's actual rendered bounds. Cannot drift, cannot mismatch.
+  const handleHit = (e) => {
+    const rect = wall.getBoundingClientRect();
+    const px = (e.touches?.[0]?.clientX ?? e.clientX) - rect.left;
+    const py = (e.touches?.[0]?.clientY ?? e.clientY) - rect.top;
+    if (px < 0 || py < 0 || px >= rect.width || py >= rect.height) return;
+    const c = Math.min(zt.cols-1, Math.max(0, Math.floor(px / (rect.width  / zt.cols))));
+    const r = Math.min(zt.rows-1, Math.max(0, Math.floor(py / (rect.height / zt.rows))));
+    onSlotClick(z.id, r, c);
+  };
+  wall.onclick = handleHit;
+
+  renderZoneLeaderboard(z.id);
+}
+function renderZoneLeaderboard(zoneId){
+  const tags = Object.values(state.zones[zoneId].tags);
+  const byOwner = {};
+  for (const t of tags){
+    if (!byOwner[t.owner]) byOwner[t.owner] = { ...t, points:0 };
+    byOwner[t.owner].points++;
+  }
+  const list = Object.values(byOwner).sort((a,b)=>b.points-a.points);
+  const el = document.getElementById('zoneLeaderboard');
+  if (list.length===0){ el.innerHTML='<div style="font-size:11px;color:var(--mid)">No tags yet · be first</div>'; return; }
+  el.innerHTML = list.map((p,i)=>{
+    const cv = document.createElement('canvas'); tagToCanvas(cv, p.pixels, p.frame);
+    const isMe = p.owner===state.me?.owner;
+    const crewBadge = p.crewTag ? `<span class="crew-tag">${p.crewTag}</span>` : '';
+    return `<div class="lb-row ${isMe?'me':''} ${i===0?'gold':''}">
+      <span class="rank">${String(i+1).padStart(2,'0')}</span>
+      <img class="lb-avatar" src="${cv.toDataURL()}" alt="">
+      <span class="name">${p.name}${crewBadge}${isMe?' <span class="badge">YOU</span>':''}</span>
+      <span class="score">${p.points}</span>
+    </div>`;
+  }).join('');
+}
+function placedAt(zoneId, r, c){
+  const t = state.zones[zoneId].tags[`${r},${c}`];
+  return t ? { key:`${r},${c}`, tag:t } : null;
+}
+function onSlotClick(zoneId, r, c){
+  if (!state.me?.tag){ toast('Draw a tag first'); return go('editor'); }
+  if (!rateCheck('place')) return;
+  updateEnergy();
+  const existing = placedAt(zoneId, r, c);
+
+  if (existing && existing.tag.owner === state.me.owner){
+    if (!spendEnergy(RULES.REFRESH_COST)){ toast(`Need ${RULES.REFRESH_COST} energy to refresh`); return; }
+    existing.tag.t = Date.now(); saveState(); renderZone(); refreshHud();
+    toast('Tag refreshed · −1 energy');
+    syncTagWrite(zoneId, existing.key, existing.tag);
+    return;
+  }
+  if (existing && existing.tag.shieldUntil > Date.now()){
+    toast('🛡 This tag is shielded'); return;
+  }
+  if (existing && isBurnt(existing.tag)){
+    if (!spendEnergy(RULES.PLACE_COST)){ toast(`Need ${RULES.PLACE_COST} energy`); return; }
+    placeOver(zoneId, existing.key);
+    toast('Burnt tag covered · −1 energy');
+    return;
+  }
+  if (existing){
+    if (state.energy.value < RULES.COVER_COST){ toast(`Need ${RULES.COVER_COST} energy`); return; }
+    return tryCover(zoneId, existing);
+  }
+  if (state.energy.value < RULES.PLACE_COST){ toast(`Need ${RULES.PLACE_COST} energy`); return; }
+  doPlace(zoneId, r, c);
+}
+function placeOver(zoneId, key){
+  const tag = makeMyTag();
+  state.zones[zoneId].tags[key] = tag;
+  state.totalTagsPlaced++;
+  state.season.mySeasonScore += (zoneId === getHotspotId() ? RULES.HOTSPOT_MULTIPLIER : 1);
+  saveState(); renderZone(); refreshHud();
+  flashPlace(key);
+  syncTagWrite(zoneId, key, tag);
+}
+function makeMyTag(){
+  return {
+    owner:state.me.owner, name:state.me.name, normieId:state.me.normieId,
+    power:effectivePower(), pixels:state.me.tag.slice(), frame: state.me.frame,
+    crewId: state.crew?.id || null, crewTag: state.crew?.tag || null, crewColor: state.crew?.color || null,
+    t:Date.now(), shieldUntil: 0
+  };
+}
+function doPlace(zoneId, r, c){
+  if (!spendEnergy(RULES.PLACE_COST)) return;
+  const slot = `${r},${c}`;
+  const tag = makeMyTag();
+  state.zones[zoneId].tags[slot] = tag;
+  state.totalTagsPlaced++;
+  const isHot = zoneId === getHotspotId();
+  state.season.mySeasonScore += isHot ? RULES.HOTSPOT_MULTIPLIER : 1;
+  saveState(); renderZone(); refreshHud();
+  flashPlace(slot);
+  toast(isHot ? '🔥 HOTSPOT TAG · 2× points' : 'Tag dropped · −1 energy');
+  syncTagWrite(zoneId, slot, tag);
+}
+function tryCover(zoneId, existing){
+  const me = { ...state.me, power: effectivePower(), tag: state.me.tag };
+  showBattleModal(me, existing.tag, ()=>{
+    if (!spendEnergy(RULES.COVER_COST)){ toast('Not enough energy'); return; }
+    if (effectivePower() > existing.tag.power){
+      const [r,c] = existing.key.split(',').map(Number);
+      const slot = `${r},${c}`;
+      if (existing.tag.owner !== state.me.owner){
+        notify('cover', `You covered ${existing.tag.name} in ${CITY.find(z=>z.id===zoneId).name}`);
+      }
+      const tag = makeMyTag();
+      state.zones[zoneId].tags[slot] = tag;
+      state.totalTagsPlaced++;
+      state.season.mySeasonScore += (zoneId === getHotspotId() ? RULES.HOTSPOT_MULTIPLIER * 2 : 2);
+      saveState(); renderZone(); refreshHud();
+      flashPlace(slot);
+      syncTagWrite(zoneId, slot, tag);
+      setTimeout(()=>toast('VICTORY · −2 energy'),100);
+    } else {
+      saveState(); refreshHud();
+      setTimeout(()=>toast('Defeat · −2 energy'),100);
+    }
+  });
+}
+function showBattleModal(me, def, onClose){
+  const win = me.power > def.power;
+  document.getElementById('battleVs').innerHTML=`
+    <div class="battle-side"><canvas id="bcA"></canvas><div class="pwr">${me.power}</div><div class="lbl">${me.name}<br>${powerLabel(me.power)}</div></div>
+    <div class="vs">VS</div>
+    <div class="battle-side"><canvas id="bcB"></canvas><div class="pwr">${def.power}</div><div class="lbl">${def.name}<br>${powerLabel(def.power)}</div></div>`;
+  tagToCanvas(document.getElementById('bcA'), me.tag, me.frame);
+  tagToCanvas(document.getElementById('bcB'), def.pixels, def.frame);
+  const res=document.getElementById('battleResult');
+  res.textContent = win?'✓ YOU WIN':'✗ YOU LOSE';
+  res.className='battle-result '+(win?'win':'lose');
+  const bg = document.getElementById('battleModal');
+  const m  = bg.querySelector('.modal');
+  bg.classList.add('show');
+  // Drama: brief flash on win, shake on lose
+  bg.classList.remove('win-flash');
+  m.classList.remove('lose-shake');
+  void bg.offsetWidth;  // restart animation if same modal reopens
+  if (win) bg.classList.add('win-flash'); else m.classList.add('lose-shake');
+  document.getElementById('btnBattleClose').onclick=()=>{
+    bg.classList.remove('show','win-flash');
+    m.classList.remove('lose-shake');
+    onClose&&onClose();
+  };
+}
+document.getElementById('bcCity').onclick = ()=>go('city');
+document.getElementById('btnBackToCity').onclick = ()=>go('city');
+document.getElementById('btnEditTagFromZone').onclick = ()=>go('editor');
+document.getElementById('btnResetZone').onclick = ()=>{
+  if(!confirm('Reset this neighborhood?')) return;
+  const zid = currentZoneId;
+  state.zones[zid] = { tags:{} }; saveState(); renderZone(); refreshHud();
+  syncZoneReset(zid);
+};
+
+/* ============= ACTION POINTS ============= */
+function renderApOptions(){
+  const el = document.getElementById('apOptions');
+  const ap = state.me?.actionPoints || 0;
+  el.innerHTML = `
+    <button ${ap<RULES.AP_SHIELD_COST?'disabled':''} data-ap="shield">🛡 SHIELD ALL MY TAGS · 24H · ${RULES.AP_SHIELD_COST} AP</button>
+    <button ${ap<RULES.AP_BOOST_COST?'disabled':''} data-ap="boost">⚡ POWER BOOST +10 · 1H · ${RULES.AP_BOOST_COST} AP</button>
+    <button ${ap<RULES.AP_REFRESH_ALL_COST?'disabled':''} data-ap="refresh">🔄 REFRESH ALL MY TAGS · ${RULES.AP_REFRESH_ALL_COST} AP</button>
+    <div style="font-size:10px;color:var(--mid);margin-top:8px;letter-spacing:1px;text-align:center">YOU HAVE <b>${ap} AP</b></div>`;
+  el.querySelectorAll('button[data-ap]').forEach(b=>{
+    b.onclick = ()=>spendAp(b.dataset.ap);
+  });
+}
+function spendAp(action){
+  if (!state.me) return;
+  const costs = { shield: RULES.AP_SHIELD_COST, boost: RULES.AP_BOOST_COST, refresh: RULES.AP_REFRESH_ALL_COST };
+  const cost = costs[action];
+  if (state.me.actionPoints < cost){ toast('Not enough AP'); return; }
+  state.me.actionPoints -= cost;
+  if (action === 'shield'){
+    const until = Date.now() + RULES.SHIELD_DURATION_MS;
+    for (const z of CITY) for (const t of Object.values(state.zones[z.id].tags))
+      if (t.owner === state.me.owner) t.shieldUntil = until;
+    toast('🛡 All your tags shielded for 24h');
+  } else if (action === 'boost'){
+    state.me.boostUntil = Date.now() + RULES.BOOST_DURATION_MS;
+    toast('⚡ Power +10 for 1h');
+  } else if (action === 'refresh'){
+    for (const z of CITY) for (const t of Object.values(state.zones[z.id].tags))
+      if (t.owner === state.me.owner) t.t = Date.now();
+    toast('🔄 All your tags refreshed');
+  }
+  saveState(); refreshHud(); renderApOptions();
+  if (currentZoneId) renderZone();
+  document.getElementById('apModal').classList.remove('show');
+}
+document.getElementById('btnUseAP').onclick = ()=>{
+  renderApOptions();
+  document.getElementById('apModal').classList.add('show');
+};
+document.getElementById('apStat').onclick = ()=>{
+  if (!state.me) return;
+  renderApOptions();
+  document.getElementById('apModal').classList.add('show');
+};
+
+/* ============= CREWS ============= */
+function renderCrewBody(){
+  const body = document.getElementById('crewBody');
+  if (!state.crew){
+    body.innerHTML = `
+      <div style="font-size:12px;color:var(--mid);line-height:1.6;margin-bottom:14px">
+        Form a crew with up to ${RULES.CREW_MAX_MEMBERS} other holders. Crew tags share an outline color, count together for zone control, and unlock combo bonuses.
+      </div>
+      <button class="primary" id="btnCreateCrew" style="width:100%;margin-bottom:8px">CREATE CREW</button>
+      <input id="crewJoinInput" type="text" placeholder="Crew invite code" style="width:100%;font-family:ui-monospace,monospace;margin-bottom:8px;font-size:12px">
+      <button class="ghost" id="btnJoinCrew" style="width:100%">JOIN CREW</button>`;
+    document.getElementById('btnCreateCrew').onclick = ()=>openCrewCreate();
+    document.getElementById('btnJoinCrew').onclick = ()=>{
+      const code = document.getElementById('crewJoinInput').value.trim().toUpperCase();
+      if (!code){ toast('Paste an invite code'); return; }
+      // mock: any 4-char code creates a fake crew you join as member
+      if (!/^[A-Z0-9]{4}$/.test(code)){ toast('Code must be 4 letters/digits'); return; }
+      state.crew = { id:`crew_${code}`, name:`Crew ${code}`, tag:code, color:CREW_COLORS[hashStr(code)%CREW_COLORS.length], founder:'?', members:[{ addr:state.wallet.address, normieId:state.me.normieId, name:state.me.name }] };
+      saveState(); renderCrewBody(); refreshHud(); toast(`Joined crew ${code}`);
+      notify('crew', `Joined crew [${code}]`);
+    };
+    return;
+  }
+  const c = state.crew;
+  const inviteUrl = `${location.origin}${location.pathname}?crew=${c.id}`;
+  body.innerHTML = `
+    <div style="text-align:center;margin-bottom:14px">
+      <div class="crew-emblem" style="--crewColor:${c.color};width:48px;height:48px;font-size:14px;margin:0 auto 8px">${c.tag}</div>
+      <div style="font-weight:800;font-size:16px">${c.name}</div>
+      <div style="font-size:9px;color:var(--mid);letter-spacing:2px;text-transform:uppercase;margin-top:3px">${c.members.length}/${RULES.CREW_MAX_MEMBERS} MEMBERS</div>
+    </div>
+    <h3 style="font-size:11px;letter-spacing:2px;margin-bottom:8px;padding-bottom:6px;border-bottom:1.5px solid var(--fg)">MEMBERS</h3>
+    <div class="crew-list">${c.members.map(m=>`
+      <div class="member"><img src="${pngUrl(m.normieId)}" alt=""><span>${m.name}</span></div>
+    `).join('')}</div>
+    <div style="margin-top:14px">
+      <div style="font-size:9px;color:var(--mid);letter-spacing:2px;margin-bottom:4px">INVITE LINK</div>
+      <input type="text" readonly value="${inviteUrl}" style="width:100%;font-family:ui-monospace,monospace;font-size:10px" id="crewInviteUrl">
+      <button class="ghost" id="btnCopyInvite" style="width:100%;margin-top:6px;font-size:10px">COPY INVITE</button>
+    </div>
+    <button class="danger" id="btnLeaveCrew" style="width:100%;margin-top:18px;font-size:10px">LEAVE CREW</button>`;
+  document.getElementById('btnCopyInvite').onclick = ()=>{
+    navigator.clipboard?.writeText(inviteUrl).then(()=>toast('Invite copied'));
+  };
+  document.getElementById('btnLeaveCrew').onclick = ()=>{
+    if (!confirm('Leave the crew?')) return;
+    state.crew = null; saveState(); renderCrewBody(); refreshHud(); toast('Left crew');
+  };
+}
+function openCrewCreate(){
+  const picker = document.getElementById('crewColorPicker');
+  picker.innerHTML = CREW_COLORS.map((c,i)=>`<div data-color="${c}" style="width:22px;height:22px;background:${c};border:2px solid ${i===0?'var(--fg)':'transparent'};cursor:pointer" tabindex="0"></div>`).join('');
+  let selected = CREW_COLORS[0];
+  picker.querySelectorAll('[data-color]').forEach(d=>{
+    d.onclick = ()=>{ selected = d.dataset.color; picker.querySelectorAll('[data-color]').forEach(x=>x.style.borderColor='transparent'); d.style.borderColor='var(--fg)'; };
+  });
+  document.getElementById('crewCreateModal').classList.add('show');
+  document.getElementById('btnCreateCrewConfirm').onclick = ()=>{
+    const name = document.getElementById('crewNameInput').value.trim();
+    const tag = document.getElementById('crewTagInput').value.trim().toUpperCase();
+    if (!name || tag.length !== 4){ toast('Name + 4-char tag required'); return; }
+    if (!/^[A-Z0-9]{4}$/.test(tag)){ toast('Tag must be 4 letters/digits'); return; }
+    state.crew = { id:`crew_${tag}_${Date.now().toString(36)}`, name, tag, color:selected, founder:state.wallet.address, members:[{ addr:state.wallet.address, normieId:state.me.normieId, name:state.me.name }] };
+    saveState(); document.getElementById('crewCreateModal').classList.remove('show'); renderCrewBody(); refreshHud(); toast(`Crew [${tag}] created`);
+    notify('crew', `Crew [${tag}] · ${name} created`);
+  };
+}
+
+/* ============= SETTINGS ============= */
+function renderSettings(){
+  const body = document.getElementById('settingsBody');
+  body.innerHTML = `
+    <div style="margin-bottom:14px">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--mid);text-transform:uppercase;margin-bottom:6px">SESSION</div>
+      <div style="font-size:11px;font-family:ui-monospace,monospace;padding:8px;background:var(--code);border:1px solid var(--border);word-break:break-all">${state.wallet?.address || '—'}</div>
+      <div style="font-size:9px;color:var(--mid);margin-top:4px;letter-spacing:1px">Session expires ${state.session ? new Date(state.session.expiresAt).toLocaleDateString() : '—'} · ${state.session?.real ? 'Real signature' : 'Mock (preview)'}</div>
+    </div>
+    <button class="ghost" id="btnTutReplay" style="width:100%;margin-bottom:6px">REPLAY TUTORIAL</button>
+    <button class="ghost" id="btnInstallPwa" style="width:100%;margin-bottom:6px">INSTALL APP</button>
+    <button class="ghost" id="btnLogout" style="width:100%;margin-bottom:18px">DISCONNECT</button>
+    <div style="font-size:9px;letter-spacing:2px;color:var(--mid);text-transform:uppercase;margin-bottom:6px">DEMO</div>
+    <button class="ghost" id="btnShowcase" style="width:100%;font-size:10px">RUN DEMO MODE</button>`;
+  document.getElementById('btnTutReplay').onclick = ()=>{ closeDrawer('settings'); startTutorial(); };
+  document.getElementById('btnInstallPwa').onclick = ()=>{
+    if (deferredPrompt){ deferredPrompt.prompt(); deferredPrompt.userChoice.then(()=>deferredPrompt=null); }
+    else toast('Use your browser menu → Install / Add to Home Screen');
+  };
+  document.getElementById('btnLogout').onclick = ()=>{
+    if(!confirm('Disconnect & exit?')) return;
+    state.me=null; state.wallet=null; state.session=null; state.holdings=[];
+    saveState(); refreshHud();
+    previewCard.classList.remove('show'); holdingsList.style.display='none';
+    document.getElementById('gateMsg').textContent='';
+    closeDrawer('settings'); go('gate');
+  };
+  document.getElementById('btnShowcase').onclick = runShowcase;
+}
+
+/* ============= DRAWERS ============= */
+function openDrawer(id){
+  closeAllDrawers();
+  document.getElementById(`${id}Drawer`).classList.add('open');
+  if (id==='notif') renderNotifList();
+  if (id==='crew') renderCrewBody();
+  if (id==='settings') renderSettings();
+}
+function closeDrawer(id){ document.getElementById(`${id}Drawer`).classList.remove('open'); }
+function closeAllDrawers(){ document.querySelectorAll('.drawer').forEach(d=>d.classList.remove('open')); }
+document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>closeDrawer(b.dataset.close));
+document.querySelectorAll('[data-close-modal]').forEach(b=>b.onclick=()=>document.getElementById(`${b.dataset.closeModal}Modal`).classList.remove('show'));
+document.getElementById('btnNotif').onclick = ()=>openDrawer('notif');
+document.getElementById('btnCrew').onclick = ()=>openDrawer('crew');
+document.getElementById('btnSettings').onclick = ()=>openDrawer('settings');
+
+/* ============= TUTORIAL ============= */
+const TUT_STEPS = [
+  { illust:'⬢',  title:'WELCOME, HOLDER',     body:'You verified your Normie ownership on-chain. Each Normie you hold gives you +2 power, up to +20.' },
+  { illust:'🎨', title:'DRAW YOUR TAG',       body:'10×10 pixels, max 40 dots. The frame around your tag is auto-generated from your Normie traits — every tag is unique.' },
+  { illust:'🏙', title:'CLAIM THE CITY',      body:'Eight neighborhoods, hundreds of slots. Hold ≥50% of a zone to control it. Controlling zones gives you faster energy regen.' },
+  { illust:'⚡', title:'STRATEGIZE',          body:'Tags decay over time (20m). Refresh yours to stay fresh, cover burnt enemies for free. Spend Action Points for shields and boosts. Hotspot zones give 2× points daily.' }
+];
+let tutIdx = 0;
+function startTutorial(){
+  tutIdx = 0; renderTut();
+  document.getElementById('tutorial').classList.add('show');
+}
+function renderTut(){
+  const s = TUT_STEPS[tutIdx];
+  document.getElementById('tutStep').textContent = `STEP ${tutIdx+1} OF ${TUT_STEPS.length}`;
+  document.getElementById('tutIllust').textContent = s.illust;
+  document.getElementById('tutTitle').textContent = s.title;
+  document.getElementById('tutBody').textContent = s.body;
+  document.getElementById('tutProgress').innerHTML = TUT_STEPS.map((_,i)=>`<div class="dot ${i===tutIdx?'active':''}"></div>`).join('');
+  document.getElementById('btnTutNext').textContent = tutIdx === TUT_STEPS.length-1 ? 'START PLAYING →' : 'NEXT →';
+}
+document.getElementById('btnTutNext').onclick = ()=>{
+  if (tutIdx < TUT_STEPS.length-1){ tutIdx++; renderTut(); }
+  else { state.onboarded = true; saveState(); document.getElementById('tutorial').classList.remove('show'); go('editor'); }
+};
+document.getElementById('btnTutSkip').onclick = ()=>{
+  state.onboarded = true; saveState(); document.getElementById('tutorial').classList.remove('show'); go('editor');
+};
+
+/* ============= PUSH ============= */
+document.getElementById('btnEnablePush').onclick = async ()=>{
+  if (!('Notification' in window)){ toast('Push not supported'); return; }
+  const perm = await Notification.requestPermission();
+  if (perm === 'granted'){ state.pushEnabled = true; saveState(); toast('Push notifications enabled'); }
+  else toast('Permission denied');
+};
+
+/* ============= HUD ============= */
+function refreshHud(){
+  updateEnergy();
+  document.getElementById('hud').style.display = state.me ? 'flex' : 'none';
+  const showGlobal = !!state.me && document.querySelector('#viewGate.active') === null;
+  document.getElementById('globalBar').style.display = showGlobal ? 'flex' : 'none';
+  document.getElementById('btnNotif').style.display = state.me ? 'flex' : 'none';
+  document.getElementById('btnCrew').style.display = state.me ? 'flex' : 'none';
+  if (!state.me) return;
+  const bar = document.getElementById('energyBar'); bar.innerHTML='';
+  const cur = state.energy.value;
+  bar.classList.toggle('energy-max', cur >= RULES.ENERGY_MAX);
+  const partial = (Date.now() - state.energy.lastRegenAt) / getRegenMs();
+  for (let i=0;i<RULES.ENERGY_MAX;i++){
+    const pip=document.createElement('div'); pip.className='pip';
+    if (i<cur) pip.classList.add('full');
+    else if (i===cur && cur<RULES.ENERGY_MAX){ pip.classList.add('partial'); pip.style.setProperty('--p', Math.min(1,partial)); }
+    bar.appendChild(pip);
+  }
+  const tEl=document.getElementById('energyTimer'); const t=energyTimeUntilNext();
+  if (cur>=RULES.ENERGY_MAX){ tEl.textContent='FULL'; tEl.style.color='var(--ok)'; }
+  else { tEl.textContent=`+1 in ${Math.ceil(t/1000)}s`; tEl.style.color='var(--fg)'; }
+  document.getElementById('hudZones').textContent = controlledZonesByMe();
+  document.getElementById('hudTags').textContent = myActiveTags();
+  document.getElementById('hudAp').textContent = state.me.actionPoints || 0;
+  document.getElementById('meBox').style.display='flex';
+  document.getElementById('meAvatar').src = pngUrl(state.me.normieId);
+  const crewBadge = state.crew ? ` <span class="crew-tag" style="background:${state.crew.color}">${state.crew.tag}</span>` : '';
+  document.getElementById('meName').innerHTML = state.me.name + crewBadge;
+  const bonus = holderBonus();
+  const eff = effectivePower();
+  const boost = state.me.boostUntil > Date.now() ? ' ⚡' : '';
+  document.getElementById('meStats').innerHTML = bonus
+    ? `Power ${state.me.power} <span class="pwr-bonus">+${bonus}</span>${boost} · ${powerLabel(eff)}`
+    : `Power ${state.me.power}${boost} · ${powerLabel(eff)}`;
+  document.getElementById('meAddr').textContent = state.wallet?.isGuest ? 'GUEST' : shortAddr(state.wallet?.address);
+  refreshGlobalBar();
+  refreshNotifBadge();
+  checkSeasonEnd();
+}
+function refreshGlobalBar(){
+  const day = Math.floor(Date.now()/(24*60*60*1000));
+  const baseHolders = 3200, variance = (Math.sin(day*1.7)+1)*200|0;
+  const activeHolders = baseHolders + variance;
+  const tagsToday = ((day*9301+49297)%233280)%8000+4000;
+  const coversToday = (tagsToday*0.18)|0;
+  document.getElementById('gbHolders').textContent = activeHolders.toLocaleString();
+  document.getElementById('gbTags').textContent = tagsToday.toLocaleString();
+  document.getElementById('gbCovers').textContent = coversToday.toLocaleString();
+  document.getElementById('gbHotspot').textContent = CITY.find(z=>z.id===getHotspotId()).name;
+  document.getElementById('gbSeason').textContent = state.season.id;
+  document.getElementById('gbSeasonLeft').textContent = fmtTime(state.season.endTs - Date.now());
+}
+setInterval(()=>{ if (state.me) refreshHud(); }, 500);
+
+document.getElementById('btnNewSeason').onclick = startNewSeason;
+
+/* ============= DEMO ============= */
+const SIM_RIVALS = [
+  { id:1234, tag:PRESETS.SKULL, power:78, name:'Normie #1234', frame:{type:'crown',accent:'#48494b'}, crewTag:'NORM' },
+  { id:5678, tag:PRESETS.STAR,  power:65, name:'Normie #5678', frame:{type:'tophat',accent:'#48494b'}, crewTag:'NORM' },
+  { id:4242, tag:PRESETS.BOLT,  power:71, name:'Normie #4242', frame:{type:'shades',accent:'#48494b'} },
+  { id:9001, tag:PRESETS.HEART, power:55, name:'Normie #9001', frame:{type:'plain',accent:'#48494b'} },
+  { id:3333, tag:PRESETS.X,     power:62, name:'Normie #3333', frame:{type:'spikes',accent:'#48494b'}, crewTag:'WILD' }
+];
+const rivalTag = rv => ({ owner:`n${rv.id}`, name:rv.name, normieId:rv.id, power:rv.power, pixels:rv.tag.slice(), frame:rv.frame, crewTag:rv.crewTag||null, crewColor: rv.crewTag==='NORM'?'#48494b':rv.crewTag==='WILD'?'#9a9b9d':null, t: Date.now() - Math.random()*RULES.DECAY_DURATION_MS*1.2 });
+function fillZoneRandom(zoneId, idx, count){
+  const z=CITY.find(z=>z.id===zoneId), zt=ZONE_TYPES[z.type], rv=SIM_RIVALS[idx];
+  const slots=[]; for (let r=0;r<zt.rows;r++) for (let c=0;c<zt.cols;c++) slots.push([r,c]);
+  for (let i=slots.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [slots[i],slots[j]]=[slots[j],slots[i]]; }
+  for (let i=0;i<count && i<slots.length;i++){ const [r,c]=slots[i]; state.zones[zoneId].tags[`${r},${c}`]=rivalTag(rv); }
+}
+function fillZoneAsMe(zoneId, count){
+  const z=CITY.find(z=>z.id===zoneId), zt=ZONE_TYPES[z.type];
+  const slots=[]; for (let r=0;r<zt.rows;r++) for (let c=0;c<zt.cols;c++)
+    if (!state.zones[zoneId].tags[`${r},${c}`]) slots.push([r,c]);
+  for (let i=slots.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [slots[i],slots[j]]=[slots[j],slots[i]]; }
+  for (let i=0;i<count && i<slots.length;i++){
+    const [r,c]=slots[i];
+    state.zones[zoneId].tags[`${r},${c}`] = makeMyTag();
+    state.zones[zoneId].tags[`${r},${c}`].t = Date.now() - Math.random()*RULES.DECAY_DURATION_MS*0.4;
+  }
+}
+function buildShowcase(){
+  for (const z of CITY) state.zones[z.id]={tags:{}};
+  fillZoneRandom('park',0,14); fillZoneRandom('north',1,8); fillZoneRandom('north',2,4);
+  fillZoneRandom('harbor',3,38); fillZoneRandom('west',4,9); fillZoneRandom('downtown',1,6);
+  fillZoneRandom('downtown',2,8); fillZoneRandom('east',2,55); fillZoneRandom('south',3,6);
+  fillZoneRandom('south',4,10); fillZoneRandom('subway',4,12); fillZoneRandom('subway',0,10);
+  if (state.me?.tag){ fillZoneAsMe('downtown',26); fillZoneAsMe('west',4); }
+  state.totalTagsPlaced = state.me ? 30 : 0;
+  state.energy.value = 3; state.energy.lastRegenAt = Date.now();
+  state.season.mySeasonScore = 47;
+  notify('place','Welcome back · 3 tags placed since you left');
+  notify('cover','Normie #4242 covered your tag in HARBOR');
+  notify('hotspot',`Today's hotspot is ${CITY.find(z=>z.id===getHotspotId()).name}`);
+}
+async function runShowcase(){
+  closeDrawer('settings');
+  if (!state.wallet) state.wallet = { address: '0xdemo000000000000000000000000000000000000' };
+  if (!state.session) state.session = { addr: state.wallet.address, expiresAt: Date.now()+RULES.SESSION_TTL_MS, real:false };
+  if (!state.holdings.length) state.holdings = [1234, 5678, 4242];
+  if (!state.me){
+    const id = parseInt(idInput.value,10) || 1234; idInput.value = id;
+    try {
+      const meta = await fetchMetadata(id);
+      state.me = { owner:`n${id}`, name:`Normie #${id}`, normieId:id, power:calcPower(meta.attributes), frame:deriveFrame(meta.attributes), tag:PRESETS.STAR.slice(), actionPoints: 25, boostUntil:0 };
+    } catch(e){ toast('Demo load failed'); return; }
+  }
+  if (!state.me.tag) state.me.tag = PRESETS.STAR.slice();
+  if (!state.me.frame) state.me.frame = { type:'plain', accent:'#48494b' };
+  if (!state.crew){
+    state.crew = { id:'crew_DEMO_demo', name:'Demo Crew', tag:'DEMO', color:CREW_COLORS[0], founder:state.wallet.address, members:[{addr:state.wallet.address, normieId:state.me.normieId, name:state.me.name}, {addr:'0x...', normieId:1234, name:'Normie #1234'}, {addr:'0x...', normieId:5678, name:'Normie #5678'}] };
+  }
+  buildShowcase(); state.onboarded = true; saveState(); refreshHud(); go('city');
+  toast('DEMO MODE · explore the city');
+}
+
+/* ============= SHARE INVITE LINK ============= */
+function checkInviteLink(){
+  const params = new URLSearchParams(location.search);
+  const crewId = params.get('crew');
+  if (crewId && state.me && !state.crew){
+    if (confirm(`Join crew ${crewId.replace('crew_','')}?`)){
+      const tag = crewId.split('_')[1] || 'XXXX';
+      state.crew = { id:crewId, name:`Crew ${tag}`, tag, color:CREW_COLORS[hashStr(crewId)%CREW_COLORS.length], founder:'?', members:[{ addr:state.wallet.address, normieId:state.me.normieId, name:state.me.name }] };
+      saveState(); refreshHud(); toast(`Joined crew [${tag}]`);
+      notify('crew', `Joined crew [${tag}]`);
+    }
+    history.replaceState({}, '', location.pathname);
+  }
+}
+
+/* ============= PWA ============= */
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferredPrompt = e; });
+if ('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+
+/* ============= BOOT ============= */
+(async function boot(){
+  document.documentElement.style.setProperty('--brick-tex', `url("${generateBrickTexture()}")`);
+  await initBackend();
+  if (!sessionValid()){ state.session=null; }
+  refreshHud();
+  if (!state.session) go('gate');
+  else if (state.me?.tag) go('city');
+  else if (state.me) go('editor');
+  else go('home');
+  checkInviteLink();
+})();
+</script>
+</body>
+</html>

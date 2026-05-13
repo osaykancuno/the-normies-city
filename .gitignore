@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Environment variables (NEVER commit secrets)
+.env
+.env.local
+.env*.local
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Vercel CLI
+.vercel
+
+# Next.js generated
+next-env.d.ts
+
+# Build-script progress files (private, regenerable, big)
+public/.holders-progress.json
+public/.traits-progress.json
+public/.atlas-progress.json
+
+# Logs that may end up in public/ by accident
+public/*.log
+
+# Source TAG Battle project — we only deploy the static bundle in public/tag-battle/
+TAG Battle/
+
+# Local build script artifacts at the repo root
+build-*.log
+install.log
+dev.log
+
+# Claude IDE local settings (machine-specific)
+.claude/
+

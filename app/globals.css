@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+/* Brand palette — only the two on-chain Normies grays plus derived shades. */
+@theme {
+  --color-on: #48494b;        /* brand "pixel on" */
+  --color-off: #e3e5e4;       /* brand "pixel off" */
+  --color-ink: #1a1b1d;       /* deepest dim (used only for UI chrome behind content) */
+  --color-soot: #2c2d2f;      /* tower side / shadow */
+  --color-bone: #c8cac6;      /* slightly dimmed brand-off, for borders */
+  --font-pixel: "Normies", "Silkscreen", ui-monospace, monospace;
+}
+
+/* Official Normies community font — used everywhere (HTML chrome + drei 3D Text). */
+@font-face {
+  font-family: "Normies";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/NormiesFont.otf") format("opentype");
+}
+
+/* Pixel-art fallback while Normies loads. */
+@font-face {
+  font-family: "Silkscreen";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("https://fonts.gstatic.com/s/silkscreen/v4/m8JXjfVPf62XiF7kO-i9ULRvamODxdI.woff2") format("woff2");
+}
+
+html, body {
+  height: 100%;
+  background: var(--color-ink);
+  color: var(--color-off);
+  font-family: var(--font-pixel);
+  margin: 0;
+}
+
+/* Lock scroll only inside the city view; profile pages need natural scrolling. */
+body:has(main[data-city]) {
+  overflow: hidden;
+}
+
+* {
+  image-rendering: pixelated;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button { font-family: inherit; }
+
+/* Scrollbars in brand. */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--color-on); }
+::-webkit-scrollbar-thumb { background: var(--color-off); }
