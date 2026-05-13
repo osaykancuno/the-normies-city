@@ -67,7 +67,10 @@ export default async function HolderPage({ params }: PageProps) {
     .filter((n) => Number.isFinite(n) && n >= 0 && n <= 9999)
     .sort((a, b) => a - b);
 
-  // Derived metrics from the burn history.
+  // Derived metrics from the burn history. We distinguish "haven't fetched" (—)
+  // from "fetched, real count is zero" (0): whales who only collect never burn
+  // anything, and the previous display made that look like missing data.
+  const burnsAvailable = burnsSettled.status === "fulfilled";
   const totalBurned = burns.reduce((s, b) => s + (b.tokenCount || 0), 0);
   const totalAp = burns.reduce((s, b) => s + Number(b.totalActions || 0), 0);
   const firstBurn = burns[burns.length - 1];
@@ -124,8 +127,8 @@ export default async function HolderPage({ params }: PageProps) {
                 : "—"
             }
           />
-          <Stat label="TOKENS BURNED" value={totalBurned || "—"} />
-          <Stat label="AP EARNED" value={totalAp || "—"} />
+          <Stat label="TOKENS BURNED" value={burnsAvailable ? totalBurned : "—"} />
+          <Stat label="AP EARNED" value={burnsAvailable ? totalAp : "—"} />
         </section>
 
         <section className="mb-8">

@@ -66,7 +66,7 @@ export default function SearchBar() {
         e.preventDefault();
         go();
       }}
-      className="pointer-events-auto flex items-stretch gap-1"
+      className="flex items-stretch"
     >
       <input
         type="text"
@@ -76,21 +76,18 @@ export default function SearchBar() {
           setError(null);
         }}
         placeholder="search · #id or 0x…"
-        className="w-[260px] bg-on px-2 py-1.5 text-[11px] tracking-wide text-off placeholder:text-off/40 focus:bg-ink focus:outline-none"
+        className="w-[240px] bg-on px-2.5 text-[11px] tracking-wide text-off placeholder:text-off/40 focus:bg-ink focus:outline-none"
         spellCheck={false}
         autoCorrect="off"
       />
       <button
         type="submit"
-        className="bg-off px-2.5 py-1.5 text-[10px] tracking-widest text-on hover:bg-off/80"
+        className="bg-off px-3 py-1.5 text-[10px] tracking-widest text-on hover:bg-off/80"
       >
         FIND
       </button>
       {error && (
-        <div
-          role="alert"
-          className="ml-1 self-center bg-on px-2 py-1 text-[10px] text-off/70"
-        >
+        <div role="alert" className="ml-px bg-on px-2 py-1.5 text-[10px] text-off/70">
           {error}
         </div>
       )}

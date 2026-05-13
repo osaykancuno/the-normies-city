@@ -2,10 +2,7 @@
 
 import { useCity } from "@/lib/store";
 
-// Tiny indicator that summarises the city snapshot health: how many on-chain tokens
-// we've hydrated, how many wallets that resolves to, and how many have been burned.
-// All numbers are derived from real state — never invented.
-
+// Sync stats pill, rendered as part of the unified top bar. Pure data from store.
 export default function SyncBadge() {
   const holders = useCity((s) => s.holders);
   const burned = useCity((s) => s.burned);
@@ -13,23 +10,29 @@ export default function SyncBadge() {
 
   if (!holders) {
     return (
-      <div className="pointer-events-auto bg-on px-2 py-1 text-[10px] tracking-widest text-off/70">
-        SYNC · WAITING FOR DATA
+      <div className="bg-on px-2.5 py-1.5 text-[10px] tracking-widest text-off/70">
+        SYNC · WAITING…
       </div>
     );
   }
   const total = holders.byToken.length;
-  // "known" = tokens whose owner we know (post-snapshot, post-burn-filter). Burned
-  // tokens are explicitly null in byToken, so they don't double-count.
   const knownHeld = holders.byToken.filter((a) => a != null).length;
   const burnedCount = burned.size;
-  const accounted = knownHeld + burnedCount;
+  const accounted = Math.min(total, knownHeld + burnedCount);
   const pct = ((accounted / total) * 100).toFixed(1);
   const holderCount = buildings.filter((b) => b.kind === "holder").length;
 
   return (
-    <div className="pointer-events-auto bg-on px-2 py-1 text-[10px] tracking-widest text-off/85">
-      SYNC · {accounted}/{total} ACCOUNTED ({pct}%) · {knownHeld} LIVE · {holderCount} HOLDERS · {burnedCount} BURNED
+    <div className="bg-on px-2.5 py-1.5 text-[10px] tracking-widest text-off/85">
+      <span className="opacity-50">SYNC </span>
+      <span>{accounted}/{total}</span>
+      <span className="opacity-50"> · </span>
+      <span>{knownHeld} LIVE</span>
+      <span className="opacity-50"> · </span>
+      <span>{holderCount} HOLDERS</span>
+      <span className="opacity-50"> · </span>
+      <span>{burnedCount} BURNED</span>
+      <span className="opacity-50"> ({pct}%)</span>
     </div>
   );
 }
