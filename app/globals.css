@@ -7,19 +7,10 @@
   --color-ink: #1a1b1d;       /* deepest dim (used only for UI chrome behind content) */
   --color-soot: #2c2d2f;      /* tower side / shadow */
   --color-bone: #c8cac6;      /* slightly dimmed brand-off, for borders */
-  --font-pixel: "Normies", "Silkscreen", ui-monospace, monospace;
+  --font-pixel: "Silkscreen", ui-monospace, monospace;
 }
 
-/* Official Normies community font — used everywhere (HTML chrome + drei 3D Text). */
-@font-face {
-  font-family: "Normies";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/NormiesFont.otf") format("opentype");
-}
-
-/* Pixel-art fallback while Normies loads. */
+/* Pixel-art display font used everywhere (HTML chrome + drei 3D Text). */
 @font-face {
   font-family: "Silkscreen";
   font-style: normal;

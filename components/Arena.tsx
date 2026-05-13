@@ -95,7 +95,6 @@ export default function Arena() {
         color={BRAND_OFF}
         anchorX="center"
         anchorY="middle"
-        font="/fonts/NormiesFont.otf"
         letterSpacing={0.05}
       >
         TAG BATTLE
@@ -106,7 +105,6 @@ export default function Arena() {
         color={BRAND_OFF}
         anchorX="center"
         anchorY="middle"
-        font="/fonts/NormiesFont.otf"
         letterSpacing={0.15}
       >
         GRAFFITI · CREWS · TERRITORY
@@ -117,7 +115,6 @@ export default function Arena() {
         color={BRAND_OFF}
         anchorX="center"
         anchorY="middle"
-        font="/fonts/NormiesFont.otf"
       >
         ▸ CLICK TO PLAY
       </Text>

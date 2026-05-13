@@ -195,7 +195,6 @@ function CentralMonument() {
             color={BRAND_OFF}
             anchorX="center"
             anchorY="middle"
-            font="/fonts/NormiesFont.otf"
             letterSpacing={0.04}
           >
             THE NORMIES CITY
@@ -211,7 +210,6 @@ function CentralMonument() {
         color={BRAND_OFF}
         anchorX="center"
         anchorY="middle"
-        font="/fonts/NormiesFont.otf"
         letterSpacing={0.08}
       >
         CLICK · OPEN CITY HALL
@@ -272,7 +270,6 @@ function StatPillar({
         anchorX="center"
         anchorY="middle"
         letterSpacing={0.18}
-        font="/fonts/NormiesFont.otf"
         maxWidth={STAT_PILLAR_WIDTH - 16}
       >
         {label}
@@ -284,7 +281,6 @@ function StatPillar({
         color={BRAND_OFF}
         anchorX="center"
         anchorY="middle"
-        font="/fonts/NormiesFont.otf"
         maxWidth={STAT_PILLAR_WIDTH - 14}
       >
         {valStr}
@@ -389,7 +385,6 @@ function EventTotem({
         color={BRAND_OFF}
         anchorX="center"
         anchorY="middle"
-        font="/fonts/NormiesFont.otf"
       >
         {symbol}
       </Text>
@@ -399,7 +394,6 @@ function EventTotem({
         color={BRAND_OFF}
         anchorX="center"
         anchorY="middle"
-        font="/fonts/NormiesFont.otf"
       >
         {label}
       </Text>
