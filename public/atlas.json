@@ -1,0 +1,11 @@
+{
+  "size": 4000,
+  "cell": 40,
+  "cols": 100,
+  "rows": 100,
+  "total": 10000,
+  "colorOn": "#48494b",
+  "colorOff": "#e3e5e4",
+  "formula": "u = (id % cols) * cell / size; v = floor(id / cols) * cell / size",
+  "builtAt": "2026-05-13T14:27:31.793Z"
+}
