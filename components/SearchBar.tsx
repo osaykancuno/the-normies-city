@@ -76,7 +76,7 @@ export default function SearchBar() {
           setError(null);
         }}
         placeholder="search · #id or 0x…"
-        className="w-[240px] bg-on px-2.5 text-[11px] tracking-wide text-off placeholder:text-off/40 focus:bg-ink focus:outline-none"
+        className="w-[min(240px,55vw)] bg-on px-2.5 text-[11px] tracking-wide text-off placeholder:text-off/40 focus:bg-ink focus:outline-none"
         spellCheck={false}
         autoCorrect="off"
       />

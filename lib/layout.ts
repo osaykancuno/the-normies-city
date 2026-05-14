@@ -88,18 +88,19 @@ const TIER_HEIGHT_GROWTH = [0, 12, 8, 5, 3.4];
  */
 function pickCellSize(footprint: number, height: number, k: number): number {
   if (k <= 1) {
-    // Show a single big Normie sized to fit the shorter dimension of the face.
     return Math.min(footprint, height);
   }
-  // Walk N from 1 upward and accept the biggest square cell that still fits k tokens.
+  // Size the grid from `k` itself instead of from the building shape: for each
+  // candidate N (columns), compute the required rows M = ceil(k / N) and find the
+  // largest square cell that fits both dimensions. This produces at most N-1 empty
+  // cells (i.e., at most one short row) instead of dozens.
+  let bestCell = 0;
   for (let N = 1; N <= 6; N++) {
-    const cellSize = footprint / N;
-    const rows = Math.max(1, Math.floor(height / cellSize));
-    if (N * rows >= k) return cellSize;
+    const M = Math.ceil(k / N);
+    const cell = Math.min(footprint / N, height / M);
+    if (cell > bestCell) bestCell = cell;
   }
-  // K is larger than 6 columns × all rows can host — cap at N=6 (the shader will
-  // ignore overflow Normies beyond MAX_FACADE_CELLS).
-  return footprint / 6;
+  return bestCell;
 }
 
 export function computeLayout({ holders, burned }: LayoutInput): {

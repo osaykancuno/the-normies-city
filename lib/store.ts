@@ -46,6 +46,10 @@ interface CityState {
   setBurned: (burned: Set<number>) => void;
   applyTransfer: (tokenId: number, from: string, to: string) => void;
   applyBurns: (tokenIds: number[]) => void;
+  /** Reconcile a holder's portfolio against authoritative data fetched live from
+   *  api.normies.art. Catches drift between the static snapshot and the chain
+   *  state (e.g. transfers that happened before the page opened). */
+  reconcileHolder: (address: string, apiTokenIds: number[]) => void;
   setSelection: (sel: Selection) => void;
   pushActivity: (event: ActivityEvent) => void;
   setFlyTo: (target: Omit<FlyTarget, "id"> | null) => void;
@@ -217,6 +221,61 @@ export const useCity = create<CityState>((set, get) => ({
       holders: { ...holders },
       burned: newBurned,
       ...recompute(holders, newBurned, pendingBirths, pendingDeaths),
+    });
+  },
+
+  reconcileHolder: (address, apiTokenIds) => {
+    const state = get();
+    const { holders, burned, pendingBirths, pendingDeaths } = state;
+    if (!holders) return;
+    const lc = address.toLowerCase();
+    const current = holders.byAddress.get(lc) ?? new Set<number>();
+    const apiSet = new Set<number>(apiTokenIds);
+
+    // Drift detection: any token id we list under this address that isn't in the
+    // live response → the holder no longer owns it. Conversely any id in the API
+    // that isn't in our state → assign it to this wallet.
+    const remove: number[] = [];
+    for (const id of current) if (!apiSet.has(id)) remove.push(id);
+    const add: number[] = [];
+    for (const id of apiTokenIds) {
+      if (!current.has(id) && id >= 0 && id < holders.byToken.length) add.push(id);
+    }
+    if (remove.length === 0 && add.length === 0) return;
+
+    // Apply removals — we don't know the new owner; the next /api/holder of *that*
+    // wallet (or the next transfer poll) will rehome the token. For now strip it.
+    for (const id of remove) {
+      current.delete(id);
+      if (holders.byToken[id] === lc) holders.byToken[id] = null;
+    }
+    if (current.size === 0) holders.byAddress.delete(lc);
+
+    // Apply additions — claim them under this wallet, removing them from any prior
+    // owner we had on record.
+    if (add.length > 0) {
+      let bucket = holders.byAddress.get(lc);
+      if (!bucket) {
+        bucket = new Set();
+        holders.byAddress.set(lc, bucket);
+      }
+      for (const id of add) {
+        const prior = holders.byToken[id];
+        if (prior && prior !== lc) {
+          const priorSet = holders.byAddress.get(prior);
+          if (priorSet) {
+            priorSet.delete(id);
+            if (priorSet.size === 0) holders.byAddress.delete(prior);
+          }
+        }
+        holders.byToken[id] = lc;
+        bucket.add(id);
+      }
+    }
+
+    set({
+      holders: { ...holders },
+      ...recompute(holders, burned, pendingBirths, pendingDeaths),
     });
   },
 

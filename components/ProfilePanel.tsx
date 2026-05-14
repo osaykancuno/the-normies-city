@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { useCity } from "@/lib/store";
@@ -7,6 +8,7 @@ import type {
   BurnedTokenInfo,
   CanvasDiff,
   CanvasInfo,
+  HolderInfo,
   NormieMetadata,
 } from "@/lib/types";
 
@@ -30,7 +32,7 @@ function Frame({
   children: React.ReactNode;
 }) {
   return (
-    <div className="pointer-events-auto absolute left-3 top-24 z-10 w-[320px] bg-on text-off">
+    <div className="pointer-events-auto absolute left-3 top-24 z-10 w-[min(320px,calc(100vw-1.5rem))] max-h-[calc(100vh-7rem)] overflow-y-auto bg-on text-off shadow-[0_4px_24px_-6px_rgba(0,0,0,0.5)]">
       <div className="flex items-center justify-between border-b border-off/15 px-3 py-2">
         <div className="text-sm tracking-widest">{title}</div>
         <button className="text-off/60 hover:text-off" onClick={onClose} aria-label="close">
@@ -49,8 +51,27 @@ function Frame({
 function HolderPanel({ address }: { address: string }) {
   const buildings = useCity((s) => s.buildingsByAddress);
   const setSelection = useCity((s) => s.setSelection);
+  const reconcileHolder = useCity((s) => s.reconcileHolder);
   const b = buildings.get(address.toLowerCase());
   const tokens = b?.tokenIds ?? [];
+
+  // Live drift fix: when the panel opens we fetch the holder's current portfolio
+  // from api.normies.art and reconcile against our snapshot. Catches transfers
+  // that happened between the snapshot build (~hours ago) and now — the on-chain
+  // transfer poll only covers a rolling 40-min window, so anything older would
+  // otherwise stay stale until a fresh transfer touched it.
+  const { data: live } = useSWR<{ holder: HolderInfo | null }>(
+    `/api/holder/${address}`,
+    fetcher,
+    { refreshInterval: 30_000, revalidateOnFocus: true }
+  );
+  useEffect(() => {
+    if (!live?.holder?.tokenIds) return;
+    const ids = live.holder.tokenIds
+      .map((id) => Number(id))
+      .filter((n) => Number.isFinite(n) && n >= 0 && n <= 9999);
+    reconcileHolder(address, ids);
+  }, [live, address, reconcileHolder]);
 
   return (
     <Frame title={`HOLDER · ${tokens.length} NORMIES`} onClose={() => setSelection(null)}>
