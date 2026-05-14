@@ -177,14 +177,28 @@ export const useCity = create<CityState>((set, get) => ({
     if (senderHadBefore && !holders.byAddress.has(fromLc) && senderSnapshot) {
       pendingDeaths.set(fromLc, { building: senderSnapshot, dyingAt: now });
     }
+    let newHolderJoined = false;
     if (!isBurn && !receiverHadBefore && holders.byAddress.has(toLc)) {
       pendingBirths.set(toLc, now);
+      newHolderJoined = true;
     }
 
     set({
       holders: { ...holders },
       ...recompute(holders, burned, pendingBirths, pendingDeaths),
     });
+
+    // Surface the welcome event AFTER the layout recompute so ActivityEffects can
+    // find the new building when it processes the event next frame.
+    if (newHolderJoined) {
+      const ev: ActivityEvent = {
+        kind: "newHolder",
+        address: toLc,
+        tokenId,
+        receivedAt: Date.now(),
+      };
+      set((s) => ({ activity: [ev, ...s.activity].slice(0, 80) }));
+    }
   },
 
   applyBurns: (tokenIds) => {

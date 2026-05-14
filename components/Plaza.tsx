@@ -370,13 +370,21 @@ function EventTotem({
   });
 
   const symbol =
-    event.kind === "burn" ? "[X]" : event.kind === "transform" ? "[#]" : "[->]";
+    event.kind === "burn"
+      ? "[X]"
+      : event.kind === "transform"
+        ? "[#]"
+        : event.kind === "newHolder"
+          ? "[*]"
+          : "[->]";
   const label =
     event.kind === "burn"
       ? `BURN #${event.commit.receiverTokenId}`
       : event.kind === "transform"
         ? `XFORM #${event.tokenId}`
-        : `MOVE #${event.tokenId}`;
+        : event.kind === "newHolder"
+          ? `JOIN #${event.tokenId}`
+          : `MOVE #${event.tokenId}`;
 
   return (
     <group ref={groupRef} position={[x, 0, z]} rotation={[0, rotY, 0]}>
@@ -413,5 +421,6 @@ function EventTotem({
 function eventKey(ev: ActivityEvent): string {
   if (ev.kind === "burn") return ev.commit.commitId;
   if (ev.kind === "transform") return `${ev.commitId}:${ev.tokenId}`;
+  if (ev.kind === "newHolder") return `new:${ev.address}`;
   return `${ev.txHash}:${ev.tokenId}`;
 }

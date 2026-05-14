@@ -112,7 +112,8 @@ export interface NormieVersion {
 export type ActivityEvent =
   | { kind: "burn"; commit: BurnCommit; receivedAt: number }
   | { kind: "transform"; tokenId: number; commitId: string; receivedAt: number }
-  | { kind: "transfer"; tokenId: number; from: string; to: string; txHash: string; receivedAt: number };
+  | { kind: "transfer"; tokenId: number; from: string; to: string; txHash: string; receivedAt: number }
+  | { kind: "newHolder"; address: string; tokenId: number; receivedAt: number };
 
 /** Live holder state. Both directions are kept so we can do O(1) updates on transfer:
  *  - byToken: token id → owner address (canonical truth)

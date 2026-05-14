@@ -36,10 +36,26 @@ interface TransferEffect {
   to: THREE.Vector3;
   bornAt: number;
 }
+interface NewHolderEffect {
+  kind: "newHolder";
+  address: string; // resolved at spawn-time to the new building
+  x: number;
+  y: number; // building centre Y
+  z: number;
+  footprint: number;
+  height: number;
+  bornAt: number;
+}
 
-type Effect = BurnEffect | XformEffect | TransferEffect;
+type Effect = BurnEffect | XformEffect | TransferEffect | NewHolderEffect;
 
-const LIFETIME = 5.0;
+// Burn/transform/transfer flash by quickly (~5 s). A NEW holder is a community
+// milestone — give it longer screen time so people see who joined while watching.
+const LIFETIME_DEFAULT = 5.0;
+const LIFETIME_NEW_HOLDER = 30.0;
+const lifetimeOf = (kind: Effect["kind"]) =>
+  kind === "newHolder" ? LIFETIME_NEW_HOLDER : LIFETIME_DEFAULT;
+
 const BEACON_HEIGHT = 460;
 const BRAND_OFF = new THREE.Color("#e3e5e4");
 
@@ -117,7 +133,20 @@ export default function ActivityEffects() {
     seenRef.current.add(key);
     if (nowMs - ev.receivedAt > SPAWN_MAX_AGE_MS) continue;
 
-    if (ev.kind === "transfer") {
+    if (ev.kind === "newHolder") {
+      const b = buildingsByAddress.get(ev.address.toLowerCase());
+      if (!b) continue;
+      effectsRef.current.push({
+        kind: "newHolder",
+        address: ev.address.toLowerCase(),
+        x: b.x,
+        y: b.y,
+        z: b.z,
+        footprint: b.footprint,
+        height: b.height,
+        bornAt: performance.now() / 1000,
+      });
+    } else if (ev.kind === "transfer") {
       // Movement arc: from sender's holder building → receiver's holder building.
       const fromAddr = ev.from?.toLowerCase();
       const toAddr = ev.to?.toLowerCase();
@@ -177,7 +206,7 @@ export default function ActivityEffects() {
     const freshKeys: symbol[] = [];
     for (let i = 0; i < effectsRef.current.length; i++) {
       const e = effectsRef.current[i];
-      if (nowSec - e.bornAt < LIFETIME) {
+      if (nowSec - e.bornAt < lifetimeOf(e.kind)) {
         fresh.push(e);
         freshKeys.push(effectKeysRef.current[i] ?? Symbol());
       }
@@ -217,7 +246,7 @@ export default function ActivityEffects() {
     effectsRef.current.forEach((e, i) => {
       const sub = keyToChild.get(effectKeysRef.current[i]);
       if (!sub) return;
-      const t = (nowSec - e.bornAt) / LIFETIME;
+      const t = (nowSec - e.bornAt) / lifetimeOf(e.kind);
       animateEffect(sub, e, t, camera);
     });
   });
@@ -247,6 +276,7 @@ export default function ActivityEffects() {
 function eventKey(ev: ActivityEvent): string {
   if (ev.kind === "burn") return `burn:${ev.commit.commitId}`;
   if (ev.kind === "transform") return `xform:${ev.commitId}:${ev.tokenId}`;
+  if (ev.kind === "newHolder") return `new:${ev.address}`;
   return `xfer:${ev.txHash}:${ev.tokenId}`;
 }
 
@@ -353,6 +383,60 @@ function buildEffectGroup(
     return g;
   }
 
+  // ── NEW HOLDER ── celebrate a wallet joining the community. Combination of:
+  // scaffold wireframe wrapping the building during construction, halo ring
+  // spinning above the roof, tall beacon, and a slow pulse ring on the ground.
+  if (e.kind === "newHolder") {
+    g.position.set(e.x, 0, e.z);
+    const fp = e.footprint;
+    const h = e.height;
+
+    // Scaffold: thin wireframe box ~footprint+padding wrapping the rising tower.
+    const scaffoldGeom = new THREE.BoxGeometry(fp + 22, h + 60, fp + 22);
+    const scaffold = new THREE.Mesh(
+      scaffoldGeom,
+      new THREE.MeshBasicMaterial({
+        color: BRAND_OFF,
+        transparent: true,
+        wireframe: true,
+      })
+    );
+    scaffold.position.y = h / 2 + 4;
+    scaffold.name = "scaffold";
+    g.add(scaffold);
+
+    // Halo ring rotating at the building top — visible from above too.
+    const halo = new THREE.Mesh(
+      new THREE.TorusGeometry(fp * 0.85, 2.2, 8, 64),
+      new THREE.MeshBasicMaterial({ color: BRAND_OFF, transparent: true })
+    );
+    halo.position.y = h + 18;
+    halo.rotation.x = Math.PI / 2;
+    halo.name = "halo";
+    g.add(halo);
+
+    // Tall beacon so the new building can be spotted from anywhere in the city.
+    const beacon = new THREE.Mesh(
+      geom.beacon,
+      new THREE.MeshBasicMaterial({ color: BRAND_OFF, transparent: true })
+    );
+    beacon.position.y = h + BEACON_HEIGHT / 2 + 20;
+    beacon.name = "beacon";
+    g.add(beacon);
+
+    // Ground pulse — outward ring at the building's base.
+    const pulse = new THREE.Mesh(
+      new THREE.TorusGeometry(fp * 0.6, 1.8, 6, 64),
+      new THREE.MeshBasicMaterial({ color: BRAND_OFF, transparent: true })
+    );
+    pulse.position.y = 2;
+    pulse.rotation.x = Math.PI / 2;
+    pulse.name = "pulse";
+    g.add(pulse);
+
+    return g;
+  }
+
   // burn / transform — anchored above a single building.
   g.position.set(e.x, e.y, e.z);
 
@@ -405,6 +489,42 @@ function buildEffectGroup(
 
 function animateEffect(sub: THREE.Group, e: Effect, t: number, camera: THREE.Camera) {
   const life = 1 - t;
+
+  if (e.kind === "newHolder") {
+    // 30 s lifecycle: 0–0.05 fade-in, 0.05–0.9 hold (with motion), 0.9–1 fade-out.
+    const fadeIn = Math.min(1, t / 0.05);
+    const fadeOut = Math.min(1, Math.max(0, 1 - (t - 0.9) / 0.1));
+    const baseOp = fadeIn * fadeOut;
+
+    const scaffold = sub.getObjectByName("scaffold") as THREE.Mesh | undefined;
+    if (scaffold) {
+      const mat = scaffold.material as THREE.MeshBasicMaterial;
+      mat.opacity = baseOp * 0.55;
+      // gentle vertical pulse so the scaffold feels "live".
+      scaffold.scale.y = 1 + Math.sin(t * 18) * 0.01;
+    }
+    const halo = sub.getObjectByName("halo") as THREE.Mesh | undefined;
+    if (halo) {
+      halo.rotation.z += 0.04; // approximate per-frame rotation
+      const mat = halo.material as THREE.MeshBasicMaterial;
+      mat.opacity = baseOp * (0.7 + 0.3 * Math.sin(t * 18));
+    }
+    const beacon = sub.getObjectByName("beacon") as THREE.Mesh | undefined;
+    if (beacon) {
+      const mat = beacon.material as THREE.MeshBasicMaterial;
+      mat.opacity = baseOp * 0.75;
+      beacon.scale.x = beacon.scale.z = 1 + Math.sin(t * 24) * 0.18;
+    }
+    const pulse = sub.getObjectByName("pulse") as THREE.Mesh | undefined;
+    if (pulse) {
+      // Expand outward and fade — repeats throughout lifetime.
+      const phase = (t * 3) % 1; // 3 pulses across 30 s
+      pulse.scale.setScalar(1 + phase * 3);
+      const mat = pulse.material as THREE.MeshBasicMaterial;
+      mat.opacity = baseOp * (1 - phase) * 0.7;
+    }
+    return;
+  }
 
   if (e.kind === "transfer") {
     // Faint trail arc — backdrop for the flying Normie.

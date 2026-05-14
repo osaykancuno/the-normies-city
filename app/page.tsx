@@ -5,6 +5,7 @@ import SearchBar from "@/components/SearchBar";
 import SyncBadge from "@/components/SyncBadge";
 import InfoBanner from "@/components/InfoBanner";
 import PlayModal from "@/components/PlayModal";
+import NewHoldersBadge from "@/components/NewHoldersBadge";
 
 export default function Home() {
   return (
@@ -34,6 +35,9 @@ export default function Home() {
 
           {/* Sync stats. */}
           <SyncBadge />
+
+          {/* New holders counter — flashes when one joins, click flies to them. */}
+          <NewHoldersBadge />
 
           {/* Canvas state. */}
           <CanvasStatusBanner />
