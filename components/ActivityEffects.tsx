@@ -1,7 +1,7 @@
 "use client";
 
-import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { useCity } from "@/lib/store";
 import type { ActivityEvent } from "@/lib/types";
@@ -31,6 +31,7 @@ interface XformEffect {
 }
 interface TransferEffect {
   kind: "transfer";
+  tokenId: number; // which Normie is travelling — used to sample its atlas slot
   from: THREE.Vector3;
   to: THREE.Vector3;
   bornAt: number;
@@ -57,6 +58,22 @@ export default function ActivityEffects() {
   const effectsRef = useRef<Effect[]>([]);
   const seenRef = useRef(new Set<string>());
   const groupRef = useRef<THREE.Group>(null);
+  const { camera } = useThree();
+
+  // Load atlas once — it's the same texture rendered on the building facades. Used
+  // by the flying-Normie effect to sample a 40×40 slot of the right tokenId.
+  const [atlas, setAtlas] = useState<THREE.Texture | null>(null);
+  useEffect(() => {
+    const loader = new THREE.TextureLoader();
+    loader.load("/atlas.png", (tex) => {
+      tex.flipY = false;
+      tex.minFilter = THREE.NearestFilter;
+      tex.magFilter = THREE.NearestFilter;
+      tex.generateMipmaps = false;
+      tex.needsUpdate = true;
+      setAtlas(tex);
+    });
+  }, []);
 
   // Lookup: tokenId → its current holder building (via state, not directly in store).
   const buildingForTokenId = (tokenId: number) => {
@@ -122,6 +139,7 @@ export default function ActivityEffects() {
       if (!fromPt || !toPt) continue;
       effectsRef.current.push({
         kind: "transfer",
+        tokenId: ev.tokenId,
         from: fromPt,
         to: toPt,
         bornAt: performance.now() / 1000,
@@ -186,7 +204,7 @@ export default function ActivityEffects() {
     for (let i = 0; i < effectsRef.current.length; i++) {
       const k = effectKeysRef.current[i];
       if (meshKeySet.has(k)) continue;
-      const sub = buildEffectGroup(effectsRef.current[i], geom);
+      const sub = buildEffectGroup(effectsRef.current[i], geom, atlas);
       group.add(sub);
       meshKeysRef.current.push(k);
     }
@@ -200,9 +218,28 @@ export default function ActivityEffects() {
       const sub = keyToChild.get(effectKeysRef.current[i]);
       if (!sub) return;
       const t = (nowSec - e.bornAt) / LIFETIME;
-      animateEffect(sub, e, t);
+      animateEffect(sub, e, t, camera);
     });
   });
+
+  // Newly-built effect groups need the atlas attached so the flier shader can sample
+  // the right Normie. We patch references after the fact via group.userData.
+  useEffect(() => {
+    if (!atlas) return;
+    const group = groupRef.current;
+    if (!group) return;
+    group.traverse((obj) => {
+      const mesh = obj as THREE.Mesh;
+      const mat = mesh.material as THREE.ShaderMaterial | undefined;
+      if (mat && mesh.name === "flier" && mat.uniforms?.uAtlas) {
+        mat.uniforms.uAtlas.value = atlas;
+        mat.needsUpdate = true;
+      }
+    });
+  }, [atlas]);
+
+  // Stash atlas on the group so buildEffectGroup can pick it up via closure.
+  if (groupRef.current) (groupRef.current as THREE.Group & { __atlas?: THREE.Texture }).__atlas = atlas ?? undefined;
 
   return <group ref={groupRef} />;
 }
@@ -213,23 +250,93 @@ function eventKey(ev: ActivityEvent): string {
   return `xfer:${ev.txHash}:${ev.tokenId}`;
 }
 
-function buildEffectGroup(e: Effect, geom: EffectGeometry): THREE.Group {
+// GLSL helpers for the flier — same brand quantisation used by the building shader so
+// the travelling Normie reads identical to the pixels it leaves behind on the facade.
+const FLIER_VERT = /* glsl */ `
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`;
+const FLIER_FRAG = /* glsl */ `
+precision highp float;
+uniform sampler2D uAtlas;
+uniform vec2 uOffset;
+uniform float uCellUv;
+uniform float uOpacity;
+uniform float uHasAtlas;
+varying vec2 vUv;
+const vec3 BRAND_ON  = vec3(0.282, 0.286, 0.294);
+const vec3 BRAND_OFF = vec3(0.890, 0.898, 0.894);
+void main() {
+  vec2 fUv = vec2(vUv.x, 1.0 - vUv.y);
+  vec3 color = BRAND_OFF;
+  if (uHasAtlas > 0.5) {
+    vec4 px = texture2D(uAtlas, uOffset + fUv * uCellUv);
+    float on = step(0.5, 1.0 - px.r);
+    color = mix(BRAND_OFF, BRAND_ON, on);
+  }
+  // Soft circular halo around the pixel art so the flier reads from a distance.
+  float r = length(vUv - 0.5);
+  float halo = smoothstep(0.55, 0.45, r) * 0.25;
+  color = mix(BRAND_OFF, color, smoothstep(0.5, 0.48, r));
+  gl_FragColor = vec4(color, uOpacity * smoothstep(0.55, 0.42, r));
+}
+`;
+const FLIER_SIZE = 38;
+
+function buildEffectGroup(
+  e: Effect,
+  geom: EffectGeometry,
+  atlas: THREE.Texture | null
+): THREE.Group {
   const g = new THREE.Group();
 
   if (e.kind === "transfer") {
-    // Build a tube along a quadratic Bezier curve arcing high between endpoints.
+    // Quadratic Bezier curve from sender to receiver; arc apex scales with distance.
     const apex = e.from.clone().lerp(e.to, 0.5);
     const distance = e.from.distanceTo(e.to);
     apex.y += Math.min(900, 200 + distance * 0.25);
     const curve = new THREE.QuadraticBezierCurve3(e.from, apex, e.to);
-    const tubeGeom = new THREE.TubeGeometry(curve, 48, 4, 6, false);
+
+    // Faint trail tube (was the main visual; now it's the "track" the Normie follows).
+    const tubeGeom = new THREE.TubeGeometry(curve, 48, 2.5, 6, false);
     const tube = new THREE.Mesh(
       tubeGeom,
       new THREE.MeshBasicMaterial({ color: BRAND_OFF, transparent: true })
     );
     tube.name = "arc";
     g.add(tube);
-    // Mark each endpoint with a small beacon.
+
+    // ── FLYING NORMIE ──
+    // Quad plane sampling the atlas at the right slot for this tokenId, animated
+    // along the curve by animateEffect. Anchors the visual identity to a real NFT.
+    const col = e.tokenId % 100;
+    const row = Math.floor(e.tokenId / 100);
+    const cellUv = 40 / 4000;
+    const flierMat = new THREE.ShaderMaterial({
+      uniforms: {
+        uAtlas: { value: atlas },
+        uOffset: { value: new THREE.Vector2(col * cellUv, row * cellUv) },
+        uCellUv: { value: cellUv },
+        uOpacity: { value: 1.0 },
+        uHasAtlas: { value: atlas ? 1.0 : 0.0 },
+      },
+      vertexShader: FLIER_VERT,
+      fragmentShader: FLIER_FRAG,
+      transparent: true,
+      depthWrite: false,
+    });
+    const flier = new THREE.Mesh(new THREE.PlaneGeometry(FLIER_SIZE, FLIER_SIZE), flierMat);
+    flier.name = "flier";
+    // Stash the curve so the animator can sample positions along it.
+    (flier.userData as { curve?: THREE.QuadraticBezierCurve3 }).curve = curve;
+    // Start at the sender so first frame doesn't snap from origin.
+    flier.position.copy(e.from);
+    g.add(flier);
+
+    // Beacons at each endpoint — slightly thinner than before so the flier dominates.
     for (const [name, pt] of [
       ["beaconA", e.from],
       ["beaconB", e.to],
@@ -296,23 +403,49 @@ function buildEffectGroup(e: Effect, geom: EffectGeometry): THREE.Group {
   return g;
 }
 
-function animateEffect(sub: THREE.Group, e: Effect, t: number) {
+function animateEffect(sub: THREE.Group, e: Effect, t: number, camera: THREE.Camera) {
   const life = 1 - t;
 
   if (e.kind === "transfer") {
+    // Faint trail arc — backdrop for the flying Normie.
     const arc = sub.getObjectByName("arc") as THREE.Mesh | undefined;
     if (arc) {
       const mat = arc.material as THREE.MeshBasicMaterial;
-      const fadeIn = Math.min(1, t / 0.2);
-      const fadeOut = Math.min(1, Math.max(0, 1 - (t - 0.6) / 0.4));
-      mat.opacity = fadeIn * fadeOut * 0.95;
+      const fadeIn = Math.min(1, t / 0.15);
+      const fadeOut = Math.min(1, Math.max(0, 1 - (t - 0.7) / 0.3));
+      mat.opacity = fadeIn * fadeOut * 0.55;
+    }
+    // Flying Normie — travels along the Bezier curve from sender to receiver,
+    // arriving roughly at t=0.8 then fading out at the destination.
+    const flier = sub.getObjectByName("flier") as THREE.Mesh | undefined;
+    if (flier) {
+      const data = flier.userData as { curve?: THREE.QuadraticBezierCurve3 };
+      const curve = data.curve;
+      if (curve) {
+        const travelT = Math.min(1, t / 0.8); // arrival at 80 % of lifetime
+        const eased = travelT < 0.5
+          ? 2 * travelT * travelT
+          : 1 - Math.pow(-2 * travelT + 2, 2) / 2;
+        const p = curve.getPoint(eased);
+        flier.position.copy(p);
+        // Billboard: always face the camera so the bitmap is readable.
+        flier.lookAt(camera.position);
+        // Subtle pulse on arrival.
+        const arriveBoost = 1 + 0.2 * Math.max(0, Math.sin((1 - travelT) * Math.PI * 4));
+        flier.scale.setScalar(arriveBoost);
+      }
+      const mat = flier.material as THREE.ShaderMaterial;
+      // Hold full opacity through travel, then fade after arrival.
+      const opacity =
+        t < 0.8 ? 1 : Math.max(0, 1 - (t - 0.8) / 0.2);
+      mat.uniforms.uOpacity.value = opacity;
     }
     for (const n of ["beaconA", "beaconB"] as const) {
       const beacon = sub.getObjectByName(n) as THREE.Mesh | undefined;
       if (beacon) {
         const mat = beacon.material as THREE.MeshBasicMaterial;
-        mat.opacity = Math.min(1, t / 0.1) * life * 0.9;
-        beacon.scale.x = beacon.scale.z = 1 + Math.sin(t * 16) * 0.2;
+        mat.opacity = Math.min(1, t / 0.1) * life * 0.75;
+        beacon.scale.x = beacon.scale.z = 1 + Math.sin(t * 16) * 0.18;
       }
     }
     return;
