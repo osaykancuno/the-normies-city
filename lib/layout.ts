@@ -54,7 +54,8 @@ interface LayoutInput {
 }
 
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5)); // ≈ 137.5°
-const SPIRAL_BASE_RADIUS = 280;
+// Holder spiral begins just outside the new wider plaza (PLAZA_RADIUS = 380 in Plaza.tsx).
+const SPIRAL_BASE_RADIUS = 420;
 const SPIRAL_GROWTH = 30;
 /** Outer city limit — used to size the ground, fog and horizon. */
 export const CITY_OUTER_RADIUS = 2200;

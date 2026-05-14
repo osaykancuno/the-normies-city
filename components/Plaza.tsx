@@ -12,13 +12,15 @@ const BRAND_OFF = "#e3e5e4";
 const BRAND_ON = "#48494b";
 const BRAND_INK = "#1a1b1d";
 
-const PLAZA_RADIUS = 240;
-const STAT_RADIUS = 170;
-// Plaza monumentation must dominate even the tallest whale skyscraper (~546u).
-const MONUMENT_TOTAL_HEIGHT = 780;
-const STAT_PILLAR_HEIGHT = 320;
-const STAT_PILLAR_WIDTH = 90;
-const STAT_PILLAR_DEPTH = 18;
+// Plaza dimensions — wider footprint, taller / chunkier furniture so the centre
+// reads clearly from anywhere in the city without the user having to fly close.
+const PLAZA_RADIUS = 380;
+const STAT_RADIUS = 260;
+// Monumentation must dominate even the tallest whale skyscraper (~546u).
+const MONUMENT_TOTAL_HEIGHT = 820;
+const STAT_PILLAR_HEIGHT = 380;
+const STAT_PILLAR_WIDTH = 140;
+const STAT_PILLAR_DEPTH = 24;
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 // Compass-aligned positions for the 4 stat pillars. Each rotation makes the pillar's
@@ -66,17 +68,22 @@ function PlazaFloor() {
     <group>
       {/* Raised circular pad in brand-on so the plaza reads as a hub. */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 1, 0]} receiveShadow>
-        <circleGeometry args={[PLAZA_RADIUS, 64]} />
+        <circleGeometry args={[PLAZA_RADIUS, 96]} />
         <meshStandardMaterial color={BRAND_ON} roughness={1} />
       </mesh>
       {/* Outer ring in brand-off — defines the plaza edge crisply. */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 1.5, 0]}>
-        <ringGeometry args={[PLAZA_RADIUS - 4, PLAZA_RADIUS, 64]} />
+        <ringGeometry args={[PLAZA_RADIUS - 6, PLAZA_RADIUS, 96]} />
         <meshBasicMaterial color={BRAND_OFF} side={THREE.DoubleSide} />
+      </mesh>
+      {/* A subtle mid ring for visual rhythm, halfway between centre and edge. */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 1.55, 0]}>
+        <ringGeometry args={[PLAZA_RADIUS * 0.55, PLAZA_RADIUS * 0.55 + 1.5, 96]} />
+        <meshBasicMaterial color={BRAND_OFF} side={THREE.DoubleSide} transparent opacity={0.45} />
       </mesh>
       {/* Inner ring around the central monument. */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 1.6, 0]}>
-        <ringGeometry args={[68, 72, 48]} />
+        <ringGeometry args={[105, 110, 64]} />
         <meshBasicMaterial color={BRAND_OFF} side={THREE.DoubleSide} />
       </mesh>
     </group>
@@ -124,74 +131,75 @@ function CentralMonument() {
       onPointerOver={showPointer}
       onPointerOut={hidePointer}
     >
-      {/* Stepped base — three tiers of dark/light slabs. */}
-      <mesh position={[0, 8, 0]}>
-        <cylinderGeometry args={[72, 78, 16, 32]} />
+      {/* Stepped base — three tiers of dark/light slabs, scaled to the new plaza. */}
+      <mesh position={[0, 9, 0]}>
+        <cylinderGeometry args={[100, 108, 18, 48]} />
         <meshStandardMaterial color={BRAND_ON} />
       </mesh>
-      <mesh position={[0, 24, 0]}>
-        <cylinderGeometry args={[58, 65, 16, 32]} />
+      <mesh position={[0, 26, 0]}>
+        <cylinderGeometry args={[82, 90, 16, 48]} />
         <meshStandardMaterial color={BRAND_INK} />
       </mesh>
-      <mesh position={[0, 36, 0]}>
-        <cylinderGeometry args={[48, 50, 4, 32]} />
+      <mesh position={[0, 38, 0]}>
+        <cylinderGeometry args={[68, 70, 4, 48]} />
         <meshBasicMaterial color={BRAND_OFF} />
       </mesh>
 
       {/* Tall central shaft — slimmer at the top for a classic obelisk silhouette. */}
-      <mesh position={[0, 360, 0]}>
-        <cylinderGeometry args={[14, 28, 640, 12]} />
+      <mesh position={[0, 380, 0]}>
+        <cylinderGeometry args={[16, 32, 680, 16]} />
         <meshStandardMaterial color={BRAND_ON} />
       </mesh>
 
       {/* Vertical accent stripes — three thin glowing bands at intervals. */}
-      {[180, 360, 540].map((y, i) => (
+      {[200, 400, 580].map((y, i) => (
         <mesh key={i} position={[0, y, 0]}>
           <cylinderGeometry args={[
-            18 - i * 1.5,
-            18 - i * 1.5,
-            1.6,
-            12,
+            22 - i * 1.5,
+            22 - i * 1.5,
+            1.8,
+            16,
           ]} />
           <meshBasicMaterial color={BRAND_OFF} />
         </mesh>
       ))}
 
       {/* Cap drum — wider plate just below the spire. */}
-      <mesh position={[0, 700, 0]}>
-        <cylinderGeometry args={[22, 16, 40, 12]} />
+      <mesh position={[0, 736, 0]}>
+        <cylinderGeometry args={[26, 18, 44, 16]} />
         <meshStandardMaterial color={BRAND_ON} />
       </mesh>
       {/* Bright crown rim on the cap. */}
-      <mesh position={[0, 720, 0]}>
-        <cylinderGeometry args={[23, 23, 2, 12]} />
+      <mesh position={[0, 758, 0]}>
+        <cylinderGeometry args={[27, 27, 2.4, 16]} />
         <meshBasicMaterial color={BRAND_OFF} />
       </mesh>
 
       {/* Spire + beacon at the very top. */}
-      <mesh position={[0, 745, 0]}>
-        <coneGeometry args={[14, 50, 12]} />
+      <mesh position={[0, 785, 0]}>
+        <coneGeometry args={[16, 56, 16]} />
         <meshStandardMaterial color={BRAND_OFF} />
       </mesh>
       <mesh ref={beaconRef} position={[0, MONUMENT_TOTAL_HEIGHT - 6, 0]}>
-        <sphereGeometry args={[6, 12, 12]} />
+        <sphereGeometry args={[7, 16, 16]} />
         <meshBasicMaterial color={BRAND_OFF} transparent />
       </mesh>
 
       {/* Slow-rotating halo ring around the spire — flair from afar. */}
-      <mesh ref={haloRef} position={[0, 690, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[60, 1.6, 6, 64]} />
+      <mesh ref={haloRef} position={[0, 720, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[78, 2, 6, 96]} />
         <meshBasicMaterial color={BRAND_OFF} transparent opacity={0.85} />
       </mesh>
 
-      {/* Rotating 4-faced title plate at readable camera height. */}
-      <group ref={titleRef} position={[0, 440, 0]}>
+      {/* Rotating 4-faced title plate at readable camera height — anchored exactly
+       *  on x=0 + middle so each face reads centered on the shaft. */}
+      <group ref={titleRef} position={[0, 460, 0]}>
         {[0, Math.PI / 2, Math.PI, -Math.PI / 2].map((rot, i) => (
           <Text
             key={i}
-            position={[0, 0, 26]}
+            position={[0, 0, 34]}
             rotation={[0, rot, 0]}
-            fontSize={14}
+            fontSize={18}
             color={BRAND_OFF}
             anchorX="center"
             anchorY="middle"
@@ -204,13 +212,13 @@ function CentralMonument() {
 
       {/* "CLICK" call-to-action at base level, easy to spot from ground. */}
       <Text
-        position={[0, 50, 56]}
-        rotation={[-0.15, 0, 0]}
-        fontSize={5}
+        position={[0, 56, 78]}
+        rotation={[-0.16, 0, 0]}
+        fontSize={6.5}
         color={BRAND_OFF}
         anchorX="center"
         anchorY="middle"
-        letterSpacing={0.08}
+        letterSpacing={0.1}
       >
         CLICK · OPEN CITY HALL
       </Text>
@@ -229,16 +237,17 @@ function StatPillar({
   label: string;
   value: string;
 }) {
-  // Pick value font size so even 8-digit numbers fit horizontally on the pillar face.
-  // Char width ~0.62 of fontSize for Normies font; we leave a small horizontal margin.
+  // Value font auto-shrinks for long numbers; with the new wider pillar we can
+  // start at 30 instead of 22 and let SDF text take care of the rest.
   const valStr = String(value);
-  const maxValueWidth = STAT_PILLAR_WIDTH - 12;
-  const requestedFontSize = 22;
+  const maxValueWidth = STAT_PILLAR_WIDTH - 22;
+  const requestedFontSize = 30;
   const widthAtRequested = valStr.length * requestedFontSize * 0.62;
-  const valueFont = widthAtRequested > maxValueWidth
-    ? Math.max(8, (maxValueWidth / (valStr.length * 0.62)))
-    : requestedFontSize;
-  const bodyY = STAT_PILLAR_HEIGHT / 2 + 4; // anchor body just above ground
+  const valueFont =
+    widthAtRequested > maxValueWidth
+      ? Math.max(12, maxValueWidth / (valStr.length * 0.62))
+      : requestedFontSize;
+  const bodyY = STAT_PILLAR_HEIGHT / 2 + 4;
 
   return (
     <group position={position as unknown as THREE.Vector3Tuple} rotation={[0, rotY, 0]}>
@@ -248,40 +257,40 @@ function StatPillar({
         <meshStandardMaterial color={BRAND_ON} roughness={1} />
       </mesh>
       {/* Top accent rail. */}
-      <mesh position={[0, STAT_PILLAR_HEIGHT + 6, 0]}>
-        <boxGeometry args={[STAT_PILLAR_WIDTH + 4, 6, STAT_PILLAR_DEPTH + 4]} />
+      <mesh position={[0, STAT_PILLAR_HEIGHT + 8, 0]}>
+        <boxGeometry args={[STAT_PILLAR_WIDTH + 6, 8, STAT_PILLAR_DEPTH + 6]} />
         <meshBasicMaterial color={BRAND_OFF} />
       </mesh>
       {/* Base plinth. */}
-      <mesh position={[0, 4, 0]}>
-        <boxGeometry args={[STAT_PILLAR_WIDTH + 8, 8, STAT_PILLAR_DEPTH + 6]} />
+      <mesh position={[0, 5, 0]}>
+        <boxGeometry args={[STAT_PILLAR_WIDTH + 12, 10, STAT_PILLAR_DEPTH + 10]} />
         <meshStandardMaterial color={BRAND_INK} />
       </mesh>
       {/* Inset display panel on the inward (+Z) face for contrast. */}
       <mesh position={[0, bodyY, STAT_PILLAR_DEPTH / 2 + 0.05]}>
-        <planeGeometry args={[STAT_PILLAR_WIDTH - 10, STAT_PILLAR_HEIGHT - 40]} />
+        <planeGeometry args={[STAT_PILLAR_WIDTH - 18, STAT_PILLAR_HEIGHT - 60]} />
         <meshBasicMaterial color={BRAND_INK} />
       </mesh>
-      {/* Label band — small caps on the upper third of the panel. */}
+      {/* Label band — upper portion of the inset panel. */}
       <Text
-        position={[0, STAT_PILLAR_HEIGHT - 50, STAT_PILLAR_DEPTH / 2 + 0.2]}
-        fontSize={7.5}
+        position={[0, STAT_PILLAR_HEIGHT - 70, STAT_PILLAR_DEPTH / 2 + 0.2]}
+        fontSize={11}
         color={BRAND_OFF}
         anchorX="center"
         anchorY="middle"
         letterSpacing={0.18}
-        maxWidth={STAT_PILLAR_WIDTH - 16}
+        maxWidth={STAT_PILLAR_WIDTH - 24}
       >
         {label}
       </Text>
-      {/* Value — auto-sized so long numbers still fit. */}
+      {/* Value — auto-sized so long numbers still fit, centred under the label. */}
       <Text
-        position={[0, STAT_PILLAR_HEIGHT - 95, STAT_PILLAR_DEPTH / 2 + 0.2]}
+        position={[0, STAT_PILLAR_HEIGHT - 135, STAT_PILLAR_DEPTH / 2 + 0.2]}
         fontSize={valueFont}
         color={BRAND_OFF}
         anchorX="center"
         anchorY="middle"
-        maxWidth={STAT_PILLAR_WIDTH - 14}
+        maxWidth={STAT_PILLAR_WIDTH - 22}
       >
         {valStr}
       </Text>
