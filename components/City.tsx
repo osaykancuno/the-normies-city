@@ -27,6 +27,7 @@ export default function City() {
   const setBurned = useCity((s) => s.setBurned);
   const tickLifecycle = useCity((s) => s.tickLifecycle);
   const buildings = useCity((s) => s.buildings);
+  const refreshNonce = useCity((s) => s.refreshNonce);
 
   // Sky/light state derived from the user's local time. Refresh every minute so the
   // day-night transition feels real but doesn't burn CPU.
@@ -60,6 +61,23 @@ export default function City() {
           if (!cancelled) setBurned(new Set(ids));
         }
       } catch {}
+      await loadHolders();
+    }
+
+    // Live holder snapshot: try the Alchemy-backed /api/holders first (edge
+    // cached 5 min, but reflects on-chain reality). Fall back to the static
+    // public/holders.json baked at deploy time when the live route is down.
+    async function loadHolders() {
+      try {
+        const res = await fetch("/api/holders", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled && Array.isArray(data.byToken)) {
+            setHolders(data.byToken);
+            return;
+          }
+        }
+      } catch {}
       try {
         const res = await fetch("/holders.json", { cache: "no-store" });
         if (res.ok) {
@@ -71,13 +89,7 @@ export default function City() {
 
     loadOnce();
     const tick = async () => {
-      try {
-        const res = await fetch("/holders.json", { cache: "no-store" });
-        if (res.ok) {
-          const data = await res.json();
-          if (!cancelled && Array.isArray(data.byToken)) setHolders(data.byToken);
-        }
-      } catch {}
+      await loadHolders();
       if (!cancelled) pollTimer = setTimeout(tick, 60_000);
     };
     pollTimer = setTimeout(tick, 60_000);
@@ -86,7 +98,10 @@ export default function City() {
       cancelled = true;
       if (pollTimer) clearTimeout(pollTimer);
     };
-  }, [setTraits, setHolders, setBurned]);
+    // Including refreshNonce: clicking the top-bar RefreshButton triggers a
+    // re-mount of this effect, so the holders snapshot is re-fetched
+    // immediately instead of waiting for the next 60 s tick.
+  }, [setTraits, setHolders, setBurned, refreshNonce]);
 
   // Brand-monochrome sky colour interpolated by brightness.
   const skyColor = useMemo(() => {
