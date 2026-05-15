@@ -62,8 +62,29 @@ export async function fetchAllBurnsForReceiver(
   }
   return all;
 }
-export const fetchBurnsForAddress = (address: string, limit = 50) =>
-  get<BurnCommit[]>(`/history/burns/address/${address}?limit=${limit}`, 60);
+export const fetchBurnsForAddress = (address: string, limit = 50, offset = 0) =>
+  get<BurnCommit[]>(
+    `/history/burns/address/${address}?limit=${limit}&offset=${offset}`,
+    60,
+  );
+
+/** Walk every burn commit attributable to an address. The upstream caps each
+ *  page at 100 items regardless of the requested limit; without pagination a
+ *  whale's burn-history pill showed "12 commits" when the real count was
+ *  several hundred. Used by the holder page. */
+export async function fetchAllBurnsForAddress(
+  address: string,
+): Promise<BurnCommit[]> {
+  const PAGE = 100;
+  const all: BurnCommit[] = [];
+  for (let offset = 0; ; offset += PAGE) {
+    const page = await fetchBurnsForAddress(address, PAGE, offset);
+    all.push(...page);
+    if (page.length < PAGE) break;
+    if (offset > 10000) break; // defensive
+  }
+  return all;
+}
 export const fetchBurnCommit = (commitId: string) =>
   get<BurnCommit>(`/history/burns/${commitId}`, 300);
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  fetchBurnsForAddress,
+  fetchAllBurnsForAddress,
   fetchHolder,
   normieImageSvgUrl,
 } from "@/lib/normies-api";
@@ -55,7 +55,7 @@ export default async function HolderPage({ params }: PageProps) {
 
   const [holderSettled, burnsSettled, rankInfo] = await Promise.all([
     Promise.allSettled([fetchHolder(address)]).then((r) => r[0]),
-    Promise.allSettled([fetchBurnsForAddress(address, 50)]).then((r) => r[0]),
+    Promise.allSettled([fetchAllBurnsForAddress(address)]).then((r) => r[0]),
     computeHolderRank(address),
   ]);
   const holder = holderSettled.status === "fulfilled" ? holderSettled.value : null;
@@ -114,11 +114,11 @@ export default async function HolderPage({ params }: PageProps) {
             </a>
             <a
               className="underline"
-              href={`https://opensea.io/${address}/normies`}
+              href="https://opensea.io/collection/normies"
               target="_blank"
               rel="noreferrer"
             >
-              opensea · normies ↗
+              opensea · normies collection ↗
             </a>
           </div>
         </header>
