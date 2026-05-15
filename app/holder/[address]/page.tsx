@@ -8,7 +8,7 @@ import {
 import PortfolioHeritage from "@/components/PortfolioHeritage";
 
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
-const NORMIES_CONTRACT = "0x9435208ca4a8dfba4bbffc52bd4d65fac3a87fd4";
+const NORMIES_CONTRACT = "0x9Eb6E2025B64f340691e424b7fe7022fFDE12438";
 
 interface PageProps {
   params: Promise<{ address: string }>;

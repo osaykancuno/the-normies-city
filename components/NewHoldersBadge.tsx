@@ -5,8 +5,9 @@ import { useCity } from "@/lib/store";
 
 // Counter pill: how many new holder buildings have risen recently.
 //
-// The /api/onchain/transfers route scans the last ~24 h of TransferSingle logs
-// (7200 blocks on mainnet); each transfer to a previously-unknown address is
+// The /api/onchain/transfers route scans the last ~24 h of ERC-721 Transfer
+// logs (7200 blocks on mainnet); each transfer to a previously-unknown
+// address is
 // emitted as a `newHolder` ActivityEvent by the store. We collect the unique
 // set here and display it as "NEW HOLDERS · N · 24H".
 //

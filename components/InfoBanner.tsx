@@ -159,7 +159,7 @@ export default function InfoBanner() {
           {" · contract "}
           <a
             className="underline"
-            href="https://etherscan.io/address/0x9435208ca4a8dfba4bbffc52bd4d65fac3a87fd4"
+            href="https://etherscan.io/address/0x9Eb6E2025B64f340691e424b7fe7022fFDE12438"
             target="_blank"
             rel="noreferrer"
           >

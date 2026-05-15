@@ -127,7 +127,7 @@ export default async function NormiePage({ params }: PageProps) {
 
             <a
               className="mt-2 block break-all bg-on px-2 py-1 text-[10px] hover:bg-off/10"
-              href={`https://opensea.io/item/ethereum/0x9435208ca4a8dfba4bbffc52bd4d65fac3a87fd4/${numId}`}
+              href={`https://opensea.io/item/ethereum/0x9Eb6E2025B64f340691e424b7fe7022fFDE12438/${numId}`}
               target="_blank"
               rel="noreferrer"
             >
