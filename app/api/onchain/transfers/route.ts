@@ -6,17 +6,33 @@ export const runtime = "nodejs";
 // Don't prerender at build time — depends on a live public RPC that may be flaky.
 export const dynamic = "force-dynamic";
 
-const LOOKBACK_BLOCKS = 200n; // ~40 min on mainnet.
+// ~24 h on mainnet at 12 s/block. Required to surface NEW HOLDERS that joined
+// recently — the previous 200-block (~40 min) window meant the banner showed 0
+// almost permanently. Alchemy supports up to 10k blocks per getLogs call;
+// public RPCs typically cap at 1–2k, so we chunk defensively when no Alchemy
+// key is configured.
+const LOOKBACK_BLOCKS = 7200n;
+const USING_ALCHEMY = Boolean(process.env.ALCHEMY_API_KEY);
+const CHUNK = USING_ALCHEMY ? 7200n : 800n;
 
 export async function GET() {
   try {
     const latest = await ethClient.getBlockNumber();
-    const logs = await ethClient.getLogs({
-      address: NORMIES_CONTRACT,
-      event: transferSingleEvent,
-      fromBlock: latest - LOOKBACK_BLOCKS,
-      toBlock: latest,
-    });
+    const from = latest - LOOKBACK_BLOCKS;
+    const fetchChunk = (s: bigint, e: bigint) =>
+      ethClient.getLogs({
+        address: NORMIES_CONTRACT,
+        event: transferSingleEvent,
+        fromBlock: s,
+        toBlock: e,
+      });
+    type LogChunk = Awaited<ReturnType<typeof fetchChunk>>;
+    const logs: LogChunk = [] as unknown as LogChunk;
+    for (let start = from; start <= latest; start += CHUNK + 1n) {
+      const end = start + CHUNK > latest ? latest : start + CHUNK;
+      const chunkLogs = await fetchChunk(start, end);
+      logs.push(...chunkLogs);
+    }
 
     const transfers = logs
       .map((log) => ({

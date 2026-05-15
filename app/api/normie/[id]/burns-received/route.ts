@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchBurnsForReceiver } from "@/lib/normies-api";
+import { fetchAllBurnsForReceiver } from "@/lib/normies-api";
 
 export const revalidate = 60;
 
@@ -10,7 +10,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ error: "invalid id" }, { status: 400 });
   }
   try {
-    const burns = await fetchBurnsForReceiver(numId, 50);
+    const burns = await fetchAllBurnsForReceiver(numId);
     return NextResponse.json(burns);
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 502 });

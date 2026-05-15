@@ -39,8 +39,29 @@ export const fetchNormieCanvasDiff = (id: number) =>
 
 export const fetchRecentBurns = (limit = 20) =>
   get<BurnCommit[]>(`/history/burns?limit=${limit}`, 10);
-export const fetchBurnsForReceiver = (tokenId: number, limit = 20) =>
-  get<BurnCommit[]>(`/history/burns/receiver/${tokenId}?limit=${limit}`, 60);
+export const fetchBurnsForReceiver = (tokenId: number, limit = 20, offset = 0) =>
+  get<BurnCommit[]>(
+    `/history/burns/receiver/${tokenId}?limit=${limit}&offset=${offset}`,
+    60,
+  );
+
+/** Paginated walk of ALL burns ever committed against a given receiver token.
+ *  Some Normies have 100+ burns received over their lifetime — the upstream
+ *  endpoint caps each page at 100, so we walk offsets until a short page comes
+ *  back. Used by Portfolio Heritage where undercounting is a correctness bug. */
+export async function fetchAllBurnsForReceiver(
+  tokenId: number,
+): Promise<BurnCommit[]> {
+  const PAGE = 100;
+  const all: BurnCommit[] = [];
+  for (let offset = 0; ; offset += PAGE) {
+    const page = await fetchBurnsForReceiver(tokenId, PAGE, offset);
+    all.push(...page);
+    if (page.length < PAGE) break;
+    if (offset > 5000) break; // defensive
+  }
+  return all;
+}
 export const fetchBurnsForAddress = (address: string, limit = 50) =>
   get<BurnCommit[]>(`/history/burns/address/${address}?limit=${limit}`, 60);
 export const fetchBurnCommit = (commitId: string) =>

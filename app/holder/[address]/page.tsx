@@ -2,11 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   fetchBurnsForAddress,
-  fetchBurnsForReceiver,
   fetchHolder,
   normieImageSvgUrl,
 } from "@/lib/normies-api";
-import type { BurnCommit } from "@/lib/types";
+import PortfolioHeritage from "@/components/PortfolioHeritage";
 
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 const NORMIES_CONTRACT = "0x9435208ca4a8dfba4bbffc52bd4d65fac3a87fd4";
@@ -78,32 +77,10 @@ export default async function HolderPage({ params }: PageProps) {
   const firstBurn = burns[burns.length - 1];
   const lastBurn = burns[0];
 
-  // ── PORTFOLIO HERITAGE ──
-  // For each Normie currently in the wallet, the on-chain history records every
-  // burn that contributed AP to it. Even if THIS wallet never burned a thing,
-  // they might own modified Normies whose pixels were paid for by other wallets'
-  // sacrifices. We sample the first 30 tokens of the portfolio (sorted ASC) and
-  // aggregate the burns they received — capped to keep the request budget sane.
-  const HERITAGE_SAMPLE_SIZE = 30;
-  const heritageTokens = tokens.slice(0, HERITAGE_SAMPLE_SIZE);
-  const heritageResults = await Promise.allSettled(
-    heritageTokens.map((id) => fetchBurnsForReceiver(id, 10))
-  );
-  const heritageBurns: Array<BurnCommit & { receivedBy: number }> = [];
-  for (let i = 0; i < heritageResults.length; i++) {
-    const r = heritageResults[i];
-    if (r.status === "fulfilled") {
-      for (const b of r.value) heritageBurns.push({ ...b, receivedBy: heritageTokens[i] });
-    }
-  }
-  const heritageAvailable = heritageResults.some((r) => r.status === "fulfilled");
-  const inheritedBurns = heritageBurns.length;
-  const inheritedSacrificed = heritageBurns.reduce((s, b) => s + (b.tokenCount || 0), 0);
-  const inheritedAp = heritageBurns.reduce((s, b) => s + Number(b.totalActions || 0), 0);
-  // Top-most recent heritage events for the UI list.
-  const heritageSample = [...heritageBurns]
-    .sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0))
-    .slice(0, 12);
+  // Portfolio heritage is computed client-side now — see PortfolioHeritage.
+  // Server-side aggregation hit Vercel's 10 s function budget for whales with
+  // 100+ tokens and forced an arbitrary 30-token sample cap that undercounted
+  // the real inherited-burn totals.
 
   return (
     <main className="min-h-screen w-screen overflow-y-auto bg-ink text-off">
@@ -190,82 +167,7 @@ export default async function HolderPage({ params }: PageProps) {
           )}
         </section>
 
-        {/* PORTFOLIO HERITAGE — burns received by the Normies currently owned.
-            Distinguishes 'this wallet's actions' from 'what was sacrificed to make
-            the assets this wallet now holds'. Always rendered when the portfolio
-            has any tokens, even if the heritage sample turns up empty. */}
-        {tokens.length > 0 && (
-          <section className="mb-8">
-            <h2 className="mb-2 text-[10px] tracking-widest opacity-60">
-              PORTFOLIO HERITAGE
-              {tokens.length > HERITAGE_SAMPLE_SIZE && (
-                <span className="ml-2 opacity-70">
-                  · sampled from first {HERITAGE_SAMPLE_SIZE} of {tokens.length}
-                </span>
-              )}
-            </h2>
-            <p className="mb-3 text-[10px] opacity-60">
-              Burns that were committed by other wallets but whose action points
-              now live in this portfolio (because the wallet later acquired the
-              receiver Normie).
-            </p>
-            <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-              <Stat
-                label="INHERITED BURNS"
-                value={heritageAvailable ? inheritedBurns : "—"}
-              />
-              <Stat
-                label="NORMIES SACRIFICED"
-                value={heritageAvailable ? inheritedSacrificed : "—"}
-              />
-              <Stat
-                label="INHERITED AP"
-                value={heritageAvailable ? inheritedAp : "—"}
-              />
-            </div>
-            {heritageSample.length === 0 ? (
-              <div className="bg-on/60 px-3 py-2 text-[11px] opacity-60">
-                {heritageAvailable
-                  ? "none of the sampled Normies have received any burns"
-                  : "could not fetch heritage data from the upstream"}
-              </div>
-            ) : (
-              <ul className="space-y-1 text-[11px]">
-                {heritageSample.map((b) => (
-                  <li
-                    key={`${b.commitId}-${b.receivedBy}`}
-                    className="grid grid-cols-[60px_70px_1fr_90px_90px_50px] items-center gap-2 bg-on/70 px-2 py-1"
-                  >
-                    <span className="opacity-60">#{b.commitId}</span>
-                    <Link
-                      href={`/holder/${b.owner}`}
-                      className="truncate underline opacity-75"
-                      title={b.owner}
-                    >
-                      {b.owner.slice(0, 6)}…{b.owner.slice(-4)}
-                    </Link>
-                    <Link
-                      href={`/normie/${b.receivedBy}`}
-                      className="truncate underline"
-                    >
-                      → #{b.receivedBy} (yours)
-                    </Link>
-                    <span className="tabular-nums">{b.tokenCount} burned</span>
-                    <span className="tabular-nums opacity-60">+{b.totalActions} AP</span>
-                    <a
-                      className="underline opacity-60 hover:opacity-100"
-                      href={`https://etherscan.io/tx/${b.txHash}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      tx
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        )}
+        {tokens.length > 0 && <PortfolioHeritage tokens={tokens} />}
 
         {burns.length > 0 && (
           <section className="mb-8">

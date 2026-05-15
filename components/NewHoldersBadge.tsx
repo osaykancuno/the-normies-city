@@ -1,21 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useCity } from "@/lib/store";
 
-// Counter pill: how many new holder buildings have risen since the page loaded.
+// Counter pill: how many new holder buildings have risen recently.
 //
-// Why "since page load" and not "since midnight": the static snapshot of holders
-// can't tell us how many holders joined over an arbitrary time window without an
-// upstream history endpoint. What we CAN observe authoritatively is every on-chain
-// transfer that arrives via /api/onchain/transfers while the app is open — those
-// are the events that mint a new building in the city.
+// The /api/onchain/transfers route scans the last ~24 h of TransferSingle logs
+// (7200 blocks on mainnet); each transfer to a previously-unknown address is
+// emitted as a `newHolder` ActivityEvent by the store. We collect the unique
+// set here and display it as "NEW HOLDERS · N · 24H".
 //
-// To avoid the backlog (the page-load fetch of the last ~200 blocks could produce
-// a handful of "new holders" from minutes ago), we drop the first 5 seconds of
-// events from the count.
-
-const BACKLOG_GRACE_MS = 5_000;
+// Earlier versions filtered events arriving in the first 5 s of the session as
+// "backlog", which had the unintended effect of dropping every event from the
+// initial poll — and since transfers are batched, that meant the counter
+// stayed at 0 forever. We keep all newHolder events; deduping by address makes
+// the count idempotent across re-polls.
 
 export default function NewHoldersBadge() {
   const activity = useCity((s) => s.activity);
@@ -23,24 +22,17 @@ export default function NewHoldersBadge() {
   const setFlyTo = useCity((s) => s.setFlyTo);
   const buildingsByAddress = useCity((s) => s.buildingsByAddress);
 
-  const sessionStartRef = useRef<number>(0);
   const [seenAddresses, setSeenAddresses] = useState<{ address: string; at: number }[]>([]);
   const [latestPulse, setLatestPulse] = useState(0);
 
-  // Capture session start once on mount.
+  // Collect every newHolder event emitted by the store. Dedupe by address so
+  // re-polls (every 30 s from /api/onchain/transfers) don't inflate the count.
   useEffect(() => {
-    sessionStartRef.current = Date.now();
-  }, []);
-
-  // Collect newHolder events emitted by the store, after the backlog grace window.
-  useEffect(() => {
-    const threshold = sessionStartRef.current + BACKLOG_GRACE_MS;
     setSeenAddresses((prev) => {
       const known = new Set(prev.map((p) => p.address));
       const next = [...prev];
       for (const ev of activity) {
         if (ev.kind !== "newHolder") continue;
-        if (ev.receivedAt < threshold) continue;
         if (known.has(ev.address)) continue;
         known.add(ev.address);
         next.unshift({ address: ev.address, at: ev.receivedAt });
@@ -94,6 +86,7 @@ export default function NewHoldersBadge() {
     >
       <span className="opacity-60">NEW HOLDERS · </span>
       <span className="ml-1 tabular-nums">{count}</span>
+      <span className="ml-1 opacity-50">· 24H</span>
       {pulseActive && <span className="ml-1">◉</span>}
     </button>
   );
