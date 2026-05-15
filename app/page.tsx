@@ -6,6 +6,7 @@ import SyncBadge from "@/components/SyncBadge";
 import InfoBanner from "@/components/InfoBanner";
 import PlayModal from "@/components/PlayModal";
 import NewHoldersBadge from "@/components/NewHoldersBadge";
+import RefreshButton from "@/components/RefreshButton";
 
 export default function Home() {
   return (
@@ -41,6 +42,9 @@ export default function Home() {
 
           {/* Canvas state. */}
           <CanvasStatusBanner />
+
+          {/* Force on-chain refresh — flushes SWR + nudges the live polls. */}
+          <RefreshButton />
 
           {/* Creator credit — last pill, links to Twitter / X. */}
           <a

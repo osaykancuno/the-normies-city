@@ -19,6 +19,9 @@ export default function LiveDataLoader() {
   const pushActivity = useCity((s) => s.pushActivity);
   const applyTransfer = useCity((s) => s.applyTransfer);
   const applyBurns = useCity((s) => s.applyBurns);
+  // Bumping this nonce from the header refresh button restarts the polls so the
+  // user gets fresh data immediately instead of waiting up to 30 s.
+  const refreshNonce = useCity((s) => s.refreshNonce);
 
   // Burn commits + derived transform events.
   useEffect(() => {
@@ -56,7 +59,7 @@ export default function LiveDataLoader() {
       stopped = true;
       if (timer) clearTimeout(timer);
     };
-  }, [pushActivity]);
+  }, [pushActivity, refreshNonce]);
 
   // ERC-1155 transfers — mutate holder map + emit transfer events.
   useEffect(() => {
@@ -90,7 +93,7 @@ export default function LiveDataLoader() {
       stopped = true;
       if (timer) clearTimeout(timer);
     };
-  }, [applyTransfer, pushActivity]);
+  }, [applyTransfer, pushActivity, refreshNonce]);
 
   // Burned-tokens diff — authoritative source for which IDs have been destroyed.
   useEffect(() => {
@@ -124,7 +127,7 @@ export default function LiveDataLoader() {
       stopped = true;
       if (timer) clearTimeout(timer);
     };
-  }, [applyBurns]);
+  }, [applyBurns, refreshNonce]);
 
   return null;
 }

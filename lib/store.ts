@@ -40,6 +40,12 @@ interface CityState {
   hoveredIndex: number | null;
   bannerOpen: boolean;
   arenaOpen: boolean;
+  /** Monotonic counter — bumping it tells LiveDataLoader to refetch immediately
+   *  instead of waiting for the next scheduled poll. */
+  refreshNonce: number;
+  /** Last time a refresh was triggered (epoch ms). Used by the header button to
+   *  show "Xs ago" so the user knows the data is fresh. */
+  lastRefreshedAt: number;
 
   setTraits: (traits: (NormieCompact | null)[]) => void;
   setHolders: (byToken: (string | null)[]) => void;
@@ -56,6 +62,8 @@ interface CityState {
   setHovered: (index: number | null) => void;
   setBannerOpen: (open: boolean) => void;
   setArenaOpen: (open: boolean) => void;
+  /** Force the live data layer (polls + SWR) to refetch right now. */
+  bumpRefresh: () => void;
   /** Prune expired lifecycle entries — invoked on a recurring tick from the city. */
   tickLifecycle: () => void;
 }
@@ -120,6 +128,8 @@ export const useCity = create<CityState>((set, get) => ({
   hoveredIndex: null,
   bannerOpen: false,
   arenaOpen: false,
+  refreshNonce: 0,
+  lastRefreshedAt: Date.now(),
 
   setTraits: (traits) => set({ traits }),
 
@@ -301,6 +311,8 @@ export const useCity = create<CityState>((set, get) => ({
   setHovered: (index) => set({ hoveredIndex: index }),
   setBannerOpen: (open) => set({ bannerOpen: open }),
   setArenaOpen: (open) => set({ arenaOpen: open }),
+  bumpRefresh: () =>
+    set((s) => ({ refreshNonce: s.refreshNonce + 1, lastRefreshedAt: Date.now() })),
 
   tickLifecycle: () => {
     const { pendingBirths, pendingDeaths, holders, burned } = get();

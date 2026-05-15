@@ -1,18 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useCity } from "@/lib/store";
 
-// Full-screen overlay that hosts the standalone TAG BATTLE bundle in an iframe.
-// The game is built independently (Vite + Phaser + Firebase) and copied into
-// /public/tag-battle/. Keeping it iframed means zero coupling between the two
-// codebases — the city app stays slim and the game stays self-contained.
+// Full-screen overlay hosting the TAG BATTLE bundle (built independently:
+// Vite + Phaser + Firebase). The game is iframed for full isolation. The status
+// strip at the top probes the bundled index.html to surface whether the
+// multiplayer backend (Firebase) is configured — separating "I'm alone because
+// the backend is broken" from "I'm alone because no other Normies holder is
+// online right now".
+
+type BackendStatus = "checking" | "configured" | "offline";
 
 export default function PlayModal() {
   const open = useCity((s) => s.arenaOpen);
   const setOpen = useCity((s) => s.setArenaOpen);
+  const [backend, setBackend] = useState<BackendStatus>("checking");
 
-  // Esc closes the modal.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -22,7 +26,45 @@ export default function PlayModal() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, setOpen]);
 
+  // Probe the bundle to see if FIREBASE_CONFIG has been injected (a sign the
+  // multiplayer backend is wired). Light fetch — ~127 KB, cached.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/tag-battle/index.html", { cache: "force-cache" });
+        const txt = await res.text();
+        if (cancelled) return;
+        const configured =
+          /const\s+FIREBASE_CONFIG\s*=\s*\{/.test(txt) &&
+          !/const\s+FIREBASE_CONFIG\s*=\s*null/.test(txt.split("const FIREBASE_CONFIG")[1] ?? "");
+        setBackend(configured ? "configured" : "offline");
+      } catch {
+        if (!cancelled) setBackend("offline");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
   if (!open) return null;
+
+  const statusColor =
+    backend === "configured"
+      ? "text-off"
+      : backend === "offline"
+        ? "text-off/40"
+        : "text-off/70";
+  const statusGlyph =
+    backend === "configured" ? "●" : backend === "offline" ? "○" : "·";
+  const statusLabel =
+    backend === "configured"
+      ? "MULTIPLAYER ONLINE"
+      : backend === "offline"
+        ? "SOLO MODE (no backend)"
+        : "CHECKING…";
 
   return (
     <div className="pointer-events-auto fixed inset-0 z-40 flex flex-col bg-ink">
@@ -31,7 +73,23 @@ export default function PlayModal() {
           <span className="bg-off px-2 py-1 text-[10px] tracking-widest text-on">
             TAG BATTLE
           </span>
-          <span className="text-[10px] tracking-wider opacity-60">
+          <span
+            className={
+              "flex items-center gap-1.5 px-2 py-1 text-[10px] tracking-widest " +
+              statusColor
+            }
+            title={
+              backend === "configured"
+                ? "Firebase backend is wired. To see other players' tags, other Normies holders must sign in (SIWE) in the same zone."
+                : backend === "offline"
+                  ? "Single-player mode — tags only visible locally."
+                  : "Probing…"
+            }
+          >
+            <span>{statusGlyph}</span>
+            <span>{statusLabel}</span>
+          </span>
+          <span className="hidden text-[10px] tracking-wider opacity-50 lg:inline">
             graffiti · crews · territory · running inside THE NORMIES CITY
           </span>
         </div>
@@ -53,6 +111,13 @@ export default function PlayModal() {
           </button>
         </div>
       </header>
+      {backend === "configured" && (
+        <div className="border-b border-off/10 bg-ink/60 px-4 py-1.5 text-[10px] tracking-wider text-off/65">
+          To meet other players in real time, both you and they must (1) connect a
+          wallet inside the game (SIWE), (2) hold ≥ 1 Normie, and (3) drop into the
+          same zone. The Firestore backend syncs the wall in real time.
+        </div>
+      )}
       <iframe
         title="TAG BATTLE"
         src="/tag-battle/index.html"
