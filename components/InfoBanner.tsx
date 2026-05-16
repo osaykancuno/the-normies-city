@@ -31,7 +31,11 @@ export default function InfoBanner() {
   const totalHolders = buildings.filter((b) => b.kind === "holder").length;
   const totalKnownTokens = holders ? holders.byToken.filter((a) => a != null).length : 0;
   const totalAccountedTokens = totalKnownTokens + burned.size;
-  const syncPct = ((totalKnownTokens / 10000) * 100).toFixed(1);
+  // Live supply = ever-minted (10 000) minus burned. The denominator must
+  // decrease as Normies are burned — the city tracks the chain, not a fixed
+  // headcount. Sync % is then "live tokens we know about / live tokens".
+  const liveSupply = Math.max(1, 10_000 - burned.size);
+  const syncPct = ((totalKnownTokens / liveSupply) * 100).toFixed(1);
 
   const topHolders = buildings
     .filter((b) => b.kind === "holder")
@@ -64,7 +68,11 @@ export default function InfoBanner() {
             <h2 className="mb-3 text-[10px] tracking-widest opacity-60">GLOBAL STATS</h2>
             <div className="grid grid-cols-2 gap-2">
               <Stat label="HOLDERS" value={totalHolders} />
-              <Stat label="SYNCED" value={`${totalKnownTokens}/10000 (${syncPct}%)`} />
+              <Stat
+                label="LIVE SUPPLY"
+                value={liveSupply.toLocaleString()}
+              />
+              <Stat label="SYNCED" value={`${totalKnownTokens}/${liveSupply} (${syncPct}%)`} />
               <Stat label="ACCOUNTED FOR" value={totalAccountedTokens} />
               <Stat label="BURN COMMITS" value={stats?.totalBurnCommitments ?? "—"} />
               <Stat label="TOKENS BURNED" value={stats?.totalBurnedTokens ?? "—"} />

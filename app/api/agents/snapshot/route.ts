@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { fetchAgentBindingsBatch, fetchAgentMetadata } from "@/lib/normies-api";
+import {
+  fetchAgentBindingsBatch,
+  fetchAgentMetadata,
+  fetchAgentPersonaPreview,
+} from "@/lib/normies-api";
 import type { AwakenedRow } from "@/lib/types";
 
 export const revalidate = 60;
@@ -151,7 +155,7 @@ export async function GET() {
       // Retry pass for any tokens whose metadata didn't come through (usually
       // upstream 429s during the burst). Lower concurrency + a small backoff
       // gives the rate-limit window time to reopen.
-      const stillUnnamed = needsMeta.filter((id) => !named.has(String(id)));
+      let stillUnnamed = needsMeta.filter((id) => !named.has(String(id)));
       if (stillUnnamed.length > 0) {
         await new Promise((r) => setTimeout(r, 500));
         const retry = await mapWithConcurrency(
@@ -160,6 +164,29 @@ export async function GET() {
           (id) => fetchAgentMetadata(id).catch(() => null),
         );
         absorb(stillUnnamed, retry);
+      }
+
+      // Last-resort fallback: /agents/persona-preview returns a deterministic
+      // persona for ANY token id, including the ~50 whose /agents/metadata
+      // currently 500s upstream. Same name + tagline the broken endpoint
+      // would have produced — computed server-side from on-chain bytes.
+      // This guarantees 100 % name-search coverage regardless of upstream
+      // outages on the metadata/info routes.
+      stillUnnamed = needsMeta.filter((id) => !named.has(String(id)));
+      if (stillUnnamed.length > 0) {
+        const previews = await mapWithConcurrency(
+          stillUnnamed,
+          METADATA_RETRY_CONCURRENCY,
+          (id) => fetchAgentPersonaPreview(id).catch(() => null),
+        );
+        for (let i = 0; i < stillUnnamed.length; i++) {
+          const p = previews[i];
+          if (!p?.name) continue;
+          named.set(String(stillUnnamed[i]), {
+            name: p.name.trim(),
+            tagline: (p.tagline ?? "").trim(),
+          });
+        }
       }
     }
 

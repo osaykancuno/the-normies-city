@@ -136,6 +136,17 @@ export const fetchAgentMetadata = (tokenId: number) =>
 export const fetchAgentCard = (tokenId: number) =>
   get<AgentCard>(`/agents/agent-card/${tokenId}`, 120);
 
+/** Deterministic persona preview — works for ANY token ID (including ones
+ *  where /agents/metadata and /agents/info are currently broken upstream).
+ *  Same persona generation logic as the live endpoints, computed
+ *  server-side from on-chain bytes. Used as the last-resort fallback in the
+ *  snapshot route so name search achieves 100 % coverage. */
+export const fetchAgentPersonaPreview = (tokenId: number) =>
+  get<{ name: string; type: string; tagline: string }>(
+    `/agents/persona-preview/${tokenId}`,
+    300, // long edge cache: previews are deterministic, never change for a given id
+  );
+
 /** Batch resolve binding for a set of token IDs. The upstream returns only the
  *  awakened entries — non-awakened tokens are omitted from the response, so a
  *  10 k-id payload comes back tiny (~18 KB for the 52 awakened today). */
