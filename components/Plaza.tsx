@@ -376,7 +376,9 @@ function EventTotem({
         ? "[#]"
         : event.kind === "newHolder"
           ? "[*]"
-          : "[->]";
+          : event.kind === "awakened"
+            ? "[O]"
+            : "[->]";
   const label =
     event.kind === "burn"
       ? `BURN #${event.commit.receiverTokenId}`
@@ -384,7 +386,9 @@ function EventTotem({
         ? `XFORM #${event.tokenId}`
         : event.kind === "newHolder"
           ? `JOIN #${event.tokenId}`
-          : `MOVE #${event.tokenId}`;
+          : event.kind === "awakened"
+            ? `WAKE ${event.name || "#" + event.tokenId}`
+            : `MOVE #${event.tokenId}`;
 
   return (
     <group ref={groupRef} position={[x, 0, z]} rotation={[0, rotY, 0]}>

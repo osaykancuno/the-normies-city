@@ -157,14 +157,39 @@ export default function LiveDataLoader() {
             for (const r of rows) {
               if (seen.has(r.tokenId)) continue;
               seen.add(r.tokenId);
-              markAwakened(r);
-              pushActivity({
-                kind: "awakened",
-                tokenId: r.tokenId,
-                agentId: r.agentId,
-                name: r.name,
-                receivedAt: Date.now(),
-              });
+              // The snapshot only carries a name for the 100 most-recent
+              // awakenings (names harvested from /agents/list). For older
+              // ones we'd get the name later via the AwakenedPanel SWR — but
+              // a brand-new awakening detected by this diff is, by
+              // definition, recent, so a name SHOULD usually already be in
+              // r. If it's missing (e.g. between two /agents/list refreshes
+              // upstream) we lazily fetch it before pushing the activity
+              // event so the feed row shows the persona name instead of
+              // just the tokenId.
+              const handle = (named: { name: string; tagline: string }) => {
+                const final = { ...r, ...named };
+                markAwakened(final);
+                pushActivity({
+                  kind: "awakened",
+                  tokenId: final.tokenId,
+                  agentId: final.agentId,
+                  name: final.name,
+                  receivedAt: Date.now(),
+                });
+              };
+              if (r.name) {
+                handle({ name: r.name, tagline: r.tagline });
+              } else {
+                fetch(`/api/agents/${r.tokenId}`)
+                  .then((res) => (res.ok ? res.json() : null))
+                  .then((info) =>
+                    handle({
+                      name: info?.name ?? "",
+                      tagline: info?.tagline ?? "",
+                    }),
+                  )
+                  .catch(() => handle({ name: "", tagline: "" }));
+              }
             }
           }
         }

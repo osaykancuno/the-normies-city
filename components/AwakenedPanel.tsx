@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import useSWR from "swr";
 import type { AgentInfo } from "@/lib/types";
 import { useCity } from "@/lib/store";
@@ -8,21 +9,38 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 // Persona card shown inside the NormiePanel when the selected token has been
 // awakened. Lazy-loads the full /agents/info/:id payload via SWR — the
-// snapshot only carries name + tagline, so the personality / quirks /
-// communication style come from this fetch the first time the panel opens.
+// snapshot only carries name + tagline for the most-recent ~100 awakenings;
+// older ones reach this panel with an empty name, get fetched on demand here,
+// and write back into the store's nameIndex via markAwakened so SearchBar
+// starts matching that name from now on.
 
 export default function AwakenedPanel({ tokenId }: { tokenId: number }) {
   const agentMeta = useCity((s) => s.awakenedAgents.get(tokenId));
+  const markAwakened = useCity((s) => s.markAwakened);
   const { data, isLoading } = useSWR<AgentInfo>(
     `/api/agents/${tokenId}`,
     fetcher,
     { revalidateOnFocus: false },
   );
 
-  // Snapshot has the name/tagline already — render the header immediately even
-  // while the larger /info payload is in flight.
-  const name = data?.name ?? agentMeta?.name ?? "—";
-  const tagline = data?.tagline ?? agentMeta?.tagline ?? "";
+  // When the /info fetch lands and the store entry doesn't have a name yet,
+  // hydrate it. This makes the activity feed retroactively show the persona
+  // name and the search bar start matching it.
+  useEffect(() => {
+    if (!data?.name) return;
+    if (agentMeta?.name) return;
+    markAwakened({
+      tokenId,
+      agentId: data.agentId ?? agentMeta?.agentId ?? "",
+      name: data.name,
+      tagline: data.tagline ?? "",
+    });
+  }, [data, agentMeta, markAwakened, tokenId]);
+
+  // Logical OR so an empty string from the snapshot falls through to the next
+  // fallback rather than rendering a blank header.
+  const name = data?.name || agentMeta?.name || `#${tokenId}`;
+  const tagline = data?.tagline || agentMeta?.tagline || "";
 
   return (
     <section className="mt-3 border border-off/15 bg-ink/30 p-2 text-[10px]">

@@ -174,12 +174,18 @@ export const useCity = create<CityState>((set, get) => ({
 
   markAwakened: (row) => {
     set((s) => {
-      if (s.awakenedSet.has(row.tokenId)) return {};
+      const prior = s.awakenedAgents.get(row.tokenId);
+      const isNew = !s.awakenedSet.has(row.tokenId);
+      // Skip the update only if both the token is already known AND the
+      // existing entry already carries a name (re-hydration would be a no-op).
+      // This lets late name resolution from /api/agents/[id] flow through
+      // for tokens originally added without a name from /agents/list.
+      if (!isNew && prior?.name) return {};
       const set_ = new Set(s.awakenedSet);
       set_.add(row.tokenId);
       const agents = new Map(s.awakenedAgents);
       agents.set(row.tokenId, {
-        agentId: row.agentId,
+        agentId: row.agentId || prior?.agentId || "",
         name: row.name,
         tagline: row.tagline,
       });
@@ -189,7 +195,10 @@ export const useCity = create<CityState>((set, get) => ({
         awakenedSet: set_,
         awakenedAgents: agents,
         nameIndex: names,
-        awakenedVersion: s.awakenedVersion + 1,
+        // Only bump the version (which triggers shader/antenna rebuild) when
+        // the awakening is genuinely new — a late name hydration shouldn't
+        // force a full instance buffer re-upload.
+        awakenedVersion: isNew ? s.awakenedVersion + 1 : s.awakenedVersion,
       };
     });
   },

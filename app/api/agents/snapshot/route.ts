@@ -1,83 +1,115 @@
 import { NextResponse } from "next/server";
-import {
-  fetchAgentBindingsBatch,
-  fetchAgentMetadata,
-} from "@/lib/normies-api";
-import type { AgentMetadata, AwakenedRow } from "@/lib/types";
+import { fetchAgentBindingsBatch } from "@/lib/normies-api";
+import type { AwakenedRow } from "@/lib/types";
 
 export const revalidate = 60;
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Awakening snapshot: returns the compact list of awakened Normies plus their
-// persona name and tagline. Powers the city-wide visual layer (halos, antennas,
-// counter pill, persona name search) and the activity-feed diff loop.
+// Awakening snapshot: returns the compact list of awakened Normies with their
+// persona name + tagline when available. Powers the city-wide visual layer
+// (halos, antennas, counter pill, persona name search) and the activity-feed
+// diff loop.
 //
-// Two upstream calls per cold miss:
-//   1) POST /agents/binding/batch with all 10 k token IDs → only awakened
-//      tokens are returned, so the response is tiny (~18 KB for 52 awakened).
-//   2) Parallel GET /agents/metadata/:id for every awakened token, then parse
-//      `name` (`"Normie #N - DisplayName"` → `DisplayName`) and tagline (first
-//      sentence of `description`).
-// At ~720 ms for the batch and ~790 B / call for metadata, the cold path is
-// well under 2 s for the current scale. Edge cache at 60 s keeps the upstream
-// pressure ≤ 53 hits / minute even if every visitor cold-misses.
+// IMPORTANT: the upstream POST /agents/binding/batch endpoint silently caps
+// its response when called with the full 10 k token-id payload — sending all
+// 10 k returns ~52 entries even though the real awakened total is 400+. The
+// fix is to CHUNK the batch into ~1 k slices and run them in parallel; each
+// slice returns its full subset of awakened tokens. Total wall time is ~700
+// ms (limited by the slowest chunk).
+//
+// We do NOT fan out /agents/metadata/:id from this route. With 400+ awakened
+// growing fast, that fan-out can push past Vercel's 10 s budget. Instead the
+// route harvests recent names from the public /agents/list endpoint (100 most
+// recent agents per call, names included) and merges them onto the binding
+// set. Older awakenings have name = "" until their AwakenedPanel opens and
+// the lazy /api/agents/[id] fetch lands.
 
 const TOTAL = 10_000;
+const BATCH_CHUNK = 1_000;
+const BASE = process.env.NORMIES_API_BASE || "https://api.normies.art";
 
-function parseDisplayName(metaName: string): string | null {
-  // Upstream format: "Normie #4354 - Zori".  Split on " - " and take the tail.
-  const idx = metaName.indexOf(" - ");
-  if (idx < 0) return null;
-  const tail = metaName.slice(idx + 3).trim();
-  return tail.length > 0 ? tail : null;
+type ListItem = {
+  agentId: string;
+  tokenId: string;
+  name?: string;
+  type?: string;
+  registeredAt?: string;
+};
+
+async function fetchRecentList(): Promise<ListItem[]> {
+  try {
+    // limit=100 is the max the upstream returns; this gives us the freshest
+    // awakened batch with names for the activity feed + name search.
+    const res = await fetch(`${BASE}/agents/list?limit=100`, {
+      next: { revalidate: 30 },
+    });
+    if (!res.ok) return [];
+    const json = (await res.json()) as { items?: ListItem[] };
+    return json.items ?? [];
+  } catch {
+    return [];
+  }
 }
 
-function parseTagline(description: string): string {
-  // Tagline is the first sentence — slice up to the first ". " or full stop.
-  const first = description.split(/\.(\s|$)/, 1)[0] ?? "";
+function parseTagline(input: string | undefined | null): string {
+  if (!input) return "";
+  const first = input.split(/\.(\s|$)/, 1)[0] ?? "";
   return first.trim();
 }
 
 export async function GET() {
   try {
-    const allIds = Array.from({ length: TOTAL }, (_, i) => i);
-    const bindings = await fetchAgentBindingsBatch(allIds);
-
-    const awakenedIds: number[] = [];
-    for (const key of Object.keys(bindings)) {
-      const n = Number(key);
-      if (Number.isInteger(n) && n >= 0 && n < TOTAL) awakenedIds.push(n);
+    // Parallel chunk-batch over the full collection.
+    const chunks: number[][] = [];
+    for (let off = 0; off < TOTAL; off += BATCH_CHUNK) {
+      chunks.push(
+        Array.from({ length: Math.min(BATCH_CHUNK, TOTAL - off) }, (_, i) => off + i),
+      );
     }
-    awakenedIds.sort((a, b) => a - b);
+    const [chunkResults, listItems] = await Promise.all([
+      Promise.all(chunks.map((ids) => fetchAgentBindingsBatch(ids))),
+      fetchRecentList(),
+    ]);
 
-    // Fan out metadata in parallel. Failures are tolerated per-token: we'd
-    // rather render a partial snapshot than 502 the whole list.
-    const metaResults = await Promise.allSettled(
-      awakenedIds.map((id) => fetchAgentMetadata(id)),
-    );
+    // Merge all chunks into one binding map.
+    const bindings: Record<string, { agentId: string }> = {};
+    for (const chunk of chunkResults) {
+      for (const [k, v] of Object.entries(chunk)) bindings[k] = v;
+    }
 
+    // Build a name lookup from the recent-list payload.
+    const namesById = new Map<string, { name: string; tagline: string }>();
+    for (const item of listItems) {
+      const tid = String(item.tokenId);
+      const name = (item.name ?? "").trim();
+      if (!name) continue;
+      // Tagline isn't carried by /agents/list — synthesise a placeholder from
+      // the type so the activity feed has something to show ("Human agent").
+      const tagline = item.type ? `${item.type} agent` : "";
+      namesById.set(tid, { name, tagline });
+    }
+
+    // Compose the awakened rows.
     const rows: AwakenedRow[] = [];
-    for (let i = 0; i < awakenedIds.length; i++) {
-      const id = awakenedIds[i];
-      const r = metaResults[i];
-      const binding = bindings[String(id)];
-      if (!binding) continue;
-      let name = `#${id}`;
-      let tagline = "";
-      if (r.status === "fulfilled") {
-        const md = r.value as AgentMetadata;
-        const parsedName = parseDisplayName(md.name ?? "");
-        if (parsedName) name = parsedName;
-        tagline = parseTagline(md.description ?? "");
-      }
-      rows.push({ tokenId: id, agentId: binding.agentId, name, tagline });
+    for (const key of Object.keys(bindings)) {
+      const tid = Number(key);
+      if (!Number.isInteger(tid) || tid < 0 || tid >= TOTAL) continue;
+      const named = namesById.get(key);
+      rows.push({
+        tokenId: tid,
+        agentId: bindings[key].agentId,
+        name: named?.name ?? "",
+        tagline: named?.tagline ?? "",
+      });
     }
+    rows.sort((a, b) => a.tokenId - b.tokenId);
 
     return NextResponse.json({
       awakened: rows,
       asOf: new Date().toISOString(),
       total: rows.length,
+      namedCount: rows.filter((r) => r.name).length,
     });
   } catch (err) {
     console.error("agents snapshot route failed:", err);
