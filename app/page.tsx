@@ -7,6 +7,7 @@ import InfoBanner from "@/components/InfoBanner";
 import PlayModal from "@/components/PlayModal";
 import NewHoldersBadge from "@/components/NewHoldersBadge";
 import RefreshButton from "@/components/RefreshButton";
+import AgentModeToggle from "@/components/AgentModeToggle";
 
 export default function Home() {
   return (
@@ -39,6 +40,9 @@ export default function Home() {
 
           {/* New holders counter — flashes when one joins, click flies to them. */}
           <NewHoldersBadge />
+
+          {/* Agent Mode — dims dormant Normies and highlights awakened ERC-8004 agents. */}
+          <AgentModeToggle />
 
           {/* Canvas state. */}
           <CanvasStatusBanner />

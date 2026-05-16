@@ -113,7 +113,83 @@ export type ActivityEvent =
   | { kind: "burn"; commit: BurnCommit; receivedAt: number }
   | { kind: "transform"; tokenId: number; commitId: string; receivedAt: number }
   | { kind: "transfer"; tokenId: number; from: string; to: string; txHash: string; receivedAt: number }
-  | { kind: "newHolder"; address: string; tokenId: number; receivedAt: number };
+  | { kind: "newHolder"; address: string; tokenId: number; receivedAt: number }
+  | { kind: "awakened"; tokenId: number; agentId: string; name: string; receivedAt: number };
+
+// ---------- ERC-8004 agent layer ----------
+// See https://eips.ethereum.org/EIPS/eip-8004 and the Adapter8004 (ERC-8217) contract.
+
+export interface AgentBinding {
+  id: string;            // "0:0x9eb6…:4354"
+  agentId: string;       // "32362"
+  standard?: number;
+  tokenContract: string;
+  tokenId: string;
+  registeredBy: string;
+  blockNumber: string;
+  timestamp: string;
+  txHash: string;
+}
+
+export interface AgentMetadata {
+  type: string;
+  name: string;          // "Normie #4354 - Zori"
+  description: string;
+  image: string;
+  services?: Array<{ name: string; endpoint: string; version: string }>;
+  active?: boolean;
+  x402Support?: boolean;
+  updatedAt?: number;
+}
+
+export interface AgentInfo {
+  tokenId: string;
+  agentId: string;
+  chainId: number;
+  name: string;
+  type: string;
+  tagline: string;
+  backstory: string;
+  greeting: string;
+  personalityTraits: string[];
+  communicationStyle: string;
+  quirks: string[];
+  systemPrompt?: string;
+  traits?: { name: string; attributes: Record<string, string> };
+  canvas?: {
+    level: number;
+    actionPoints: number;
+    customized: boolean;
+    diff?: {
+      added?: Array<{ x: number; y: number }>;
+      removed?: Array<{ x: number; y: number }>;
+    };
+  };
+}
+
+export interface AgentCard {
+  name: string;
+  description: string;
+  supportedInterfaces?: Array<{ url: string; protocolBinding: string; protocolVersion: string }>;
+  provider?: { organization: string; url: string };
+  iconUrl?: string;
+  capabilities?: Record<string, boolean>;
+  skills?: Array<{
+    id: string;
+    name: string;
+    description: string;
+    tags?: string[];
+    examples?: string[];
+  }>;
+}
+
+/** Compact awakened-Normie row exposed by /api/agents/snapshot. */
+export interface AwakenedRow {
+  tokenId: number;
+  agentId: string;
+  name: string;
+  tagline: string;
+}
 
 /** Live holder state. Both directions are kept so we can do O(1) updates on transfer:
  *  - byToken: token id → owner address (canonical truth)

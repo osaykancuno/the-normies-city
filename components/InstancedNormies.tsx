@@ -26,6 +26,9 @@ export default function InstancedNormies() {
   const setHovered = useCity((s) => s.setHovered);
   const hoveredIndex = useCity((s) => s.hoveredIndex);
   const selection = useCity((s) => s.selection);
+  const awakenedSet = useCity((s) => s.awakenedSet);
+  const awakenedVersion = useCity((s) => s.awakenedVersion);
+  const agentMode = useCity((s) => s.agentMode);
 
   const fallback = useMemo(makeFallbackTexture, []);
   const tokenIdsTexRef = useRef<THREE.DataTexture | null>(null);
@@ -62,6 +65,7 @@ export default function InstancedNormies() {
         uSelectedIndex: { value: -1 },
         uTokenIdsTex: { value: fallback }, // will be replaced when buildings change
         uTokenIdsTexSize: { value: 1 },
+        uAgentMode: { value: 0 },
       },
       vertexShader: VERT,
       fragmentShader: FRAG,
@@ -97,7 +101,20 @@ export default function InstancedNormies() {
 
       aMix[i * 4 + 0] = b.glow;
       aMix[i * 4 + 1] = b.kind === "burned" ? 0.45 : 1.0;
-      aMix[i * 4 + 2] = b.kind === "burned" ? 1.0 : 0.0;
+      // 3-state enum: 0 = normal, 1 = burned, 2 = awakened. A holder building
+      // is "awakened" if any of its held token ids is in the awakened set.
+      let stateZ = 0.0;
+      if (b.kind === "burned") {
+        stateZ = 1.0;
+      } else {
+        for (const id of b.tokenIds) {
+          if (awakenedSet.has(id)) {
+            stateZ = 2.0;
+            break;
+          }
+        }
+      }
+      aMix[i * 4 + 2] = stateZ;
       aMix[i * 4 + 3] = fracHash(
         b.kind === "holder" ? hashFromAddress(b.address) : b.tokenId * 131
       );
@@ -161,11 +178,15 @@ export default function InstancedNormies() {
     mesh.geometry.setAttribute("aSize", new THREE.InstancedBufferAttribute(aSize, 2));
     mesh.geometry.setAttribute("aTokens", new THREE.InstancedBufferAttribute(aTokens, 3));
     mesh.computeBoundingSphere();
-  }, [buildings, material]);
+    // awakenedVersion bumps on every awakening so the 3-state attribute is
+    // re-uploaded (the closure captures awakenedSet by reference but React
+    // only re-runs the effect when a primitive dep changes).
+  }, [buildings, material, awakenedSet, awakenedVersion]);
 
   useFrame(() => {
     material.uniforms.uTime.value = Date.now() / 1000;
     material.uniforms.uHoveredIndex.value = hoveredIndex ?? -1;
+    material.uniforms.uAgentMode.value = agentMode ? 1 : 0;
 
     // Find the instance index of the currently selected building so the shader can
     // ghost out every other tower and let the selected one read through occluders.
@@ -326,6 +347,7 @@ uniform float uCellUv;
 uniform float uTime;
 uniform float uHoveredIndex;
 uniform float uSelectedIndex;
+uniform float uAgentMode;
 
 varying vec3  vNormalW;
 varying vec2  vUv;
@@ -342,7 +364,8 @@ const vec3 BRAND_INK = vec3(0.102, 0.106, 0.114);
 
 #define vGlow   vMix.x
 #define vShade  vMix.y
-#define vBurned vMix.z
+// vState: 0 = normal, 1 = burned, 2 = awakened (ERC-8004 agent bound).
+#define vState  vMix.z
 #define vHash   vMix.w
 #define vTokensOffset vTokens.x
 #define vTokensCount  vTokens.y
@@ -542,9 +565,32 @@ void main() {
     color = mix(color * 1.15, BRAND_OFF, ring * 0.85);
   }
 
-  if (vBurned > 0.5) {
+  if (vState > 0.5 && vState < 1.5) {
+    // Burned tomb.
     color *= 0.55;
     color += step(0.92, vUv.y) * 0.08;
+  }
+
+  // Awakened: emissive top band + a slow pulse — visible even when Agent Mode
+  // is OFF so awakened towers are always discoverable in the skyline.
+  if (vState > 1.5) {
+    float topBand = smoothstep(0.82, 1.0, vUv.y);
+    float pulse = 0.65 + 0.35 * sin(uTime * 1.6 + vHash * 6.2832);
+    color += vec3(0.32) * topBand * pulse;
+    // Thin emissive edge ring right at the top of the front face.
+    float edgeRing = step(0.97, vUv.y) * step(0.04, vUv.x) * step(vUv.x, 0.96);
+    color = mix(color, BRAND_OFF, edgeRing * 0.8);
+  }
+
+  // Agent Mode: emphasise the awakened layer over the dormant city.
+  if (uAgentMode > 0.5 && vState < 1.5) {
+    // Dither-discard ~3/16 of pixels on dormant towers so the awakened ones
+    // pop. The pattern (mod 16, accept 0..2) keeps a sparse vertical ribbing
+    // that reads as "still there but ghosted" rather than "missing".
+    float pat = mod(gl_FragCoord.x + gl_FragCoord.y * 3.0, 16.0);
+    if (pat > 2.5) discard;
+  } else if (uAgentMode > 0.5 && vState > 1.5) {
+    color *= 1.15;
   }
 
   // Dying buildings get a faint horizontal shimmer that creeps up the facade.

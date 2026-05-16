@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useCity } from "@/lib/store";
-import type { BurnCommit } from "@/lib/types";
+import type { AwakenedRow, BurnCommit } from "@/lib/types";
 
 // Tight polling cadences keep the city near real-time without exceeding the
 // upstream rate limit (each route handler caches at the edge for ~revalidate seconds).
@@ -10,15 +10,19 @@ import type { BurnCommit } from "@/lib/types";
 //   burn commits        5s  → emits burn + (when revealed) transform events
 //   ERC-1155 transfers  12s → mutates holder map + emits transfer events
 //   burned tokens diff  30s → mutates holder map (removes burned tokens from owners)
+//   awakening snapshot  45s → mutates awakenedSet + emits awakened events
 
 const BURNS_INTERVAL_MS = 5_000;
 const TRANSFERS_INTERVAL_MS = 12_000;
 const BURNED_INTERVAL_MS = 30_000;
+const AWAKENED_INTERVAL_MS = 45_000;
 
 export default function LiveDataLoader() {
   const pushActivity = useCity((s) => s.pushActivity);
   const applyTransfer = useCity((s) => s.applyTransfer);
   const applyBurns = useCity((s) => s.applyBurns);
+  const setAwakenedSnapshot = useCity((s) => s.setAwakenedSnapshot);
+  const markAwakened = useCity((s) => s.markAwakened);
   // Bumping this nonce from the header refresh button restarts the polls so the
   // user gets fresh data immediately instead of waiting up to 30 s.
   const refreshNonce = useCity((s) => s.refreshNonce);
@@ -128,6 +132,51 @@ export default function LiveDataLoader() {
       if (timer) clearTimeout(timer);
     };
   }, [applyBurns, refreshNonce]);
+
+  // ERC-8004 agent awakening snapshot — full collection scan, but lightweight
+  // because the upstream batch endpoint returns only awakened entries. First
+  // tick seeds the set silently; subsequent ticks emit one `awakened` event
+  // per newly-bound Normie.
+  useEffect(() => {
+    const seen = new Set<number>();
+    let bootstrapped = false;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const tick = async () => {
+      try {
+        const res = await fetch("/api/agents/snapshot", { cache: "no-store" });
+        if (res.ok) {
+          const data = (await res.json()) as { awakened: AwakenedRow[] };
+          const rows = Array.isArray(data.awakened) ? data.awakened : [];
+          if (!bootstrapped) {
+            setAwakenedSnapshot(rows);
+            for (const r of rows) seen.add(r.tokenId);
+            bootstrapped = true;
+          } else {
+            for (const r of rows) {
+              if (seen.has(r.tokenId)) continue;
+              seen.add(r.tokenId);
+              markAwakened(r);
+              pushActivity({
+                kind: "awakened",
+                tokenId: r.tokenId,
+                agentId: r.agentId,
+                name: r.name,
+                receivedAt: Date.now(),
+              });
+            }
+          }
+        }
+      } catch {}
+      if (!stopped) timer = setTimeout(tick, AWAKENED_INTERVAL_MS);
+    };
+    tick();
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [setAwakenedSnapshot, markAwakened, pushActivity, refreshNonce]);
 
   return null;
 }

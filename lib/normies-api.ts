@@ -2,6 +2,10 @@
 // browser. Uses Next fetch cache for edge-level deduping under the 60 req/min budget.
 
 import type {
+  AgentBinding,
+  AgentCard,
+  AgentInfo,
+  AgentMetadata,
   BurnCommit,
   BurnedTokenInfo,
   CanvasDiff,
@@ -112,6 +116,42 @@ export const fetchBurnedToken = (tokenId: number) =>
 
 export const fetchVersions = (id: number) =>
   get<NormieVersion[]>(`/history/normie/${id}/versions`, 30);
+
+// ---------- agents (ERC-8004) ----------
+//
+// The Awakening: every Normie can be bound to an ERC-8004 agent identity via the
+// Adapter8004 contract. The persona is computed deterministically server-side
+// from the on-chain trait + canvas state — same inputs → same persona, every
+// time, on any machine.
+
+export const fetchAgentBinding = (tokenId: number) =>
+  get<{ binding: AgentBinding | null }>(`/agents/binding/${tokenId}`, 60);
+
+export const fetchAgentInfo = (tokenId: number) =>
+  get<AgentInfo>(`/agents/info/${tokenId}`, 120);
+
+export const fetchAgentMetadata = (tokenId: number) =>
+  get<AgentMetadata>(`/agents/metadata/${tokenId}`, 60);
+
+export const fetchAgentCard = (tokenId: number) =>
+  get<AgentCard>(`/agents/agent-card/${tokenId}`, 120);
+
+/** Batch resolve binding for a set of token IDs. The upstream returns only the
+ *  awakened entries — non-awakened tokens are omitted from the response, so a
+ *  10 k-id payload comes back tiny (~18 KB for the 52 awakened today). */
+export async function fetchAgentBindingsBatch(
+  tokenIds: number[],
+): Promise<Record<string, AgentBinding>> {
+  const res = await fetch(`${BASE}/agents/binding/batch`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ tokenIds }),
+    next: { revalidate: 30 },
+  });
+  if (!res.ok) throw new Error(`agents-batch ${res.status}`);
+  const json = (await res.json()) as { bindings?: Record<string, AgentBinding> };
+  return json.bindings ?? {};
+}
 
 // ---------- holders ----------
 

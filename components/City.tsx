@@ -8,6 +8,7 @@ import { useCity } from "@/lib/store";
 import { CITY_OUTER_RADIUS } from "@/lib/layout";
 import { currentSkyState, type SkyState } from "@/lib/daynight";
 import InstancedNormies from "./InstancedNormies";
+import AwakenedAntennas from "./AwakenedAntennas";
 import CameraControls from "./CameraControls";
 import ActivityEffects from "./ActivityEffects";
 import LiveDataLoader from "./LiveDataLoader";
@@ -135,6 +136,7 @@ export default function City() {
       <Stars />
       <Suspense fallback={null}>
         {buildings.length > 0 && <InstancedNormies />}
+        {buildings.length > 0 && <AwakenedAntennas />}
         <Plaza />
         <Arena />
         <ActivityEffects />

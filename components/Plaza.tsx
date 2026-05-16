@@ -422,5 +422,6 @@ function eventKey(ev: ActivityEvent): string {
   if (ev.kind === "burn") return ev.commit.commitId;
   if (ev.kind === "transform") return `${ev.commitId}:${ev.tokenId}`;
   if (ev.kind === "newHolder") return `new:${ev.address}`;
+  if (ev.kind === "awakened") return `awake:${ev.tokenId}`;
   return `${ev.txHash}:${ev.tokenId}`;
 }

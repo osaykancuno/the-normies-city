@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { useCity } from "@/lib/store";
+import AwakenedPanel from "./AwakenedPanel";
 import type {
   BurnedTokenInfo,
   CanvasDiff,
@@ -137,6 +138,7 @@ function HolderPanel({ address }: { address: string }) {
 function NormiePanel({ tokenId }: { tokenId: number }) {
   const setSelection = useCity((s) => s.setSelection);
   const traits = useCity((s) => s.traits);
+  const isAwakened = useCity((s) => s.awakenedSet.has(tokenId));
   const compact = traits?.[tokenId];
 
   const { data: meta } = useSWR<NormieMetadata>(`/api/normie/${tokenId}`, fetcher);
@@ -200,6 +202,20 @@ function NormiePanel({ tokenId }: { tokenId: number }) {
       ) : null}
 
       {meta && <div className="mt-3 truncate text-[10px] opacity-60">{meta.name}</div>}
+
+      {isAwakened ? (
+        <AwakenedPanel tokenId={tokenId} />
+      ) : (
+        <a
+          href="https://normies.art/lab"
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 block bg-off px-2 py-1.5 text-center text-[10px] tracking-widest text-on hover:bg-off/80"
+          title="Bind this Normie to an ERC-8004 agent identity"
+        >
+          AWAKEN YOURS → normies.art/lab
+        </a>
+      )}
 
       <Link
         href={`/normie/${tokenId}`}

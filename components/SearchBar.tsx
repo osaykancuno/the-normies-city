@@ -13,11 +13,25 @@ export default function SearchBar() {
   const buildings = useCity((s) => s.buildings);
   const setSelection = useCity((s) => s.setSelection);
   const setFlyTo = useCity((s) => s.setFlyTo);
+  const nameIndex = useCity((s) => s.nameIndex);
 
   function go() {
     setError(null);
     const q = value.trim().toLowerCase();
     if (!q) return;
+
+    // Persona name (e.g. "Zori") — only matches if the snapshot has loaded and
+    // an awakened Normie carries that exact display name.
+    const personaHit = nameIndex.get(q);
+    if (personaHit !== undefined) {
+      const owner = holders?.byToken[personaHit];
+      if (owner) {
+        const b = buildingsByAddress.get(owner.toLowerCase());
+        if (b) setFlyTo({ x: b.x, y: b.y, z: b.z, size: b.height });
+      }
+      setSelection({ kind: "normie", tokenId: personaHit });
+      return;
+    }
 
     // Wallet address.
     if (ADDRESS_RE.test(q)) {
@@ -75,7 +89,7 @@ export default function SearchBar() {
           setValue(e.target.value);
           setError(null);
         }}
-        placeholder="search · #id or 0x…"
+        placeholder="search · #id · 0x… · agent name"
         className="w-[min(240px,55vw)] bg-on px-2.5 text-[11px] tracking-wide text-off placeholder:text-off/40 focus:bg-ink focus:outline-none"
         spellCheck={false}
         autoCorrect="off"

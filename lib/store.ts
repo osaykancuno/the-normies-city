@@ -4,7 +4,7 @@
 // rise / collapse of their building.
 
 import { create } from "zustand";
-import type { ActivityEvent, HolderState, NormieCompact } from "./types";
+import type { ActivityEvent, AwakenedRow, HolderState, NormieCompact } from "./types";
 import type { Building, HolderBuilding } from "./layout";
 import { computeLayout } from "./layout";
 
@@ -46,6 +46,24 @@ interface CityState {
   /** Last time a refresh was triggered (epoch ms). Used by the header button to
    *  show "Xs ago" so the user knows the data is fresh. */
   lastRefreshedAt: number;
+
+  // ---------- ERC-8004 agent layer ----------
+  /** Token IDs that have been bound to an ERC-8004 agent identity. */
+  awakenedSet: Set<number>;
+  /** TokenId → {agentId, name, tagline} for awakened Normies (from snapshot). */
+  awakenedAgents: Map<number, { agentId: string; name: string; tagline: string }>;
+  /** Lowercased persona name → tokenId, for SearchBar name lookup. */
+  nameIndex: Map<string, number>;
+  /** When true, dormant towers are dithered and awakened ones intensified. */
+  agentMode: boolean;
+  /** Bumped on every awakened-set change — used as a primitive dep in
+   *  InstancedNormies/AwakenedAntennas so they rebuild instance buffers
+   *  without having to subscribe to the Set/Map references. */
+  awakenedVersion: number;
+
+  setAwakenedSnapshot: (rows: AwakenedRow[]) => void;
+  markAwakened: (row: AwakenedRow) => void;
+  setAgentMode: (on: boolean) => void;
 
   setTraits: (traits: (NormieCompact | null)[]) => void;
   setHolders: (byToken: (string | null)[]) => void;
@@ -130,6 +148,53 @@ export const useCity = create<CityState>((set, get) => ({
   arenaOpen: false,
   refreshNonce: 0,
   lastRefreshedAt: Date.now(),
+
+  awakenedSet: new Set(),
+  awakenedAgents: new Map(),
+  nameIndex: new Map(),
+  agentMode: false,
+  awakenedVersion: 0,
+
+  setAwakenedSnapshot: (rows) => {
+    const set_ = new Set<number>();
+    const agents = new Map<number, { agentId: string; name: string; tagline: string }>();
+    const names = new Map<string, number>();
+    for (const r of rows) {
+      set_.add(r.tokenId);
+      agents.set(r.tokenId, { agentId: r.agentId, name: r.name, tagline: r.tagline });
+      if (r.name) names.set(r.name.toLowerCase(), r.tokenId);
+    }
+    set((s) => ({
+      awakenedSet: set_,
+      awakenedAgents: agents,
+      nameIndex: names,
+      awakenedVersion: s.awakenedVersion + 1,
+    }));
+  },
+
+  markAwakened: (row) => {
+    set((s) => {
+      if (s.awakenedSet.has(row.tokenId)) return {};
+      const set_ = new Set(s.awakenedSet);
+      set_.add(row.tokenId);
+      const agents = new Map(s.awakenedAgents);
+      agents.set(row.tokenId, {
+        agentId: row.agentId,
+        name: row.name,
+        tagline: row.tagline,
+      });
+      const names = new Map(s.nameIndex);
+      if (row.name) names.set(row.name.toLowerCase(), row.tokenId);
+      return {
+        awakenedSet: set_,
+        awakenedAgents: agents,
+        nameIndex: names,
+        awakenedVersion: s.awakenedVersion + 1,
+      };
+    });
+  },
+
+  setAgentMode: (on) => set({ agentMode: on }),
 
   setTraits: (traits) => set({ traits }),
 

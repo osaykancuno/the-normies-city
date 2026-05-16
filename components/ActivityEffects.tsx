@@ -46,15 +46,30 @@ interface NewHolderEffect {
   height: number;
   bornAt: number;
 }
+interface AwakenedEffect {
+  kind: "awakened";
+  tokenId: number;
+  x: number;
+  y: number; // building centre Y
+  z: number;
+  footprint: number;
+  height: number;
+  bornAt: number;
+}
 
-type Effect = BurnEffect | XformEffect | TransferEffect | NewHolderEffect;
+type Effect = BurnEffect | XformEffect | TransferEffect | NewHolderEffect | AwakenedEffect;
 
 // Burn/transform/transfer flash by quickly (~5 s). A NEW holder is a community
 // milestone — give it longer screen time so people see who joined while watching.
 const LIFETIME_DEFAULT = 5.0;
 const LIFETIME_NEW_HOLDER = 30.0;
+const LIFETIME_AWAKENED = 12.0;
 const lifetimeOf = (kind: Effect["kind"]) =>
-  kind === "newHolder" ? LIFETIME_NEW_HOLDER : LIFETIME_DEFAULT;
+  kind === "newHolder"
+    ? LIFETIME_NEW_HOLDER
+    : kind === "awakened"
+      ? LIFETIME_AWAKENED
+      : LIFETIME_DEFAULT;
 
 const BEACON_HEIGHT = 460;
 const BRAND_OFF = new THREE.Color("#e3e5e4");
@@ -139,6 +154,20 @@ export default function ActivityEffects() {
       effectsRef.current.push({
         kind: "newHolder",
         address: ev.address.toLowerCase(),
+        x: b.x,
+        y: b.y,
+        z: b.z,
+        footprint: b.footprint,
+        height: b.height,
+        bornAt: performance.now() / 1000,
+      });
+    } else if (ev.kind === "awakened") {
+      // Place the effect on the building currently holding the awakened token.
+      const b = buildingForTokenId(ev.tokenId);
+      if (!b || b.kind !== "holder") continue;
+      effectsRef.current.push({
+        kind: "awakened",
+        tokenId: ev.tokenId,
         x: b.x,
         y: b.y,
         z: b.z,
@@ -277,6 +306,7 @@ function eventKey(ev: ActivityEvent): string {
   if (ev.kind === "burn") return `burn:${ev.commit.commitId}`;
   if (ev.kind === "transform") return `xform:${ev.commitId}:${ev.tokenId}`;
   if (ev.kind === "newHolder") return `new:${ev.address}`;
+  if (ev.kind === "awakened") return `awake:${ev.tokenId}`;
   return `xfer:${ev.txHash}:${ev.tokenId}`;
 }
 
@@ -437,6 +467,47 @@ function buildEffectGroup(
     return g;
   }
 
+  // ── AWAKENED ── celebrate a Normie binding to its ERC-8004 agent identity.
+  // Visual: rising signal beam from the rooftop + an expanding halo ring that
+  // settles at the top of the building. Distinct from newHolder by the
+  // single beam (vs scaffold box) and the halo at the roof (vs ground pulse).
+  if (e.kind === "awakened") {
+    g.position.set(e.x, 0, e.z);
+    const h = e.height;
+    const fp = e.footprint;
+
+    const beam = new THREE.Mesh(
+      geom.beacon,
+      new THREE.MeshBasicMaterial({ color: BRAND_OFF, transparent: true })
+    );
+    beam.position.y = h + BEACON_HEIGHT / 2 + 10;
+    beam.name = "beam";
+    g.add(beam);
+
+    const halo = new THREE.Mesh(
+      new THREE.TorusGeometry(fp * 0.7, 1.6, 8, 64),
+      new THREE.MeshBasicMaterial({ color: BRAND_OFF, transparent: true })
+    );
+    halo.position.y = h + 14;
+    halo.rotation.x = Math.PI / 2;
+    halo.name = "halo";
+    g.add(halo);
+
+    // Top burst — four short orthogonal lines at the roof, signal spreading.
+    for (let i = 0; i < 4; i++) {
+      const arm = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.6, 0.6, fp * 0.45, 4),
+        new THREE.MeshBasicMaterial({ color: BRAND_OFF, transparent: true })
+      );
+      arm.position.y = h + 18;
+      arm.rotation.z = Math.PI / 2;
+      arm.rotation.y = (i / 4) * Math.PI * 2;
+      arm.name = `arm${i}`;
+      g.add(arm);
+    }
+    return g;
+  }
+
   // burn / transform — anchored above a single building.
   g.position.set(e.x, e.y, e.z);
 
@@ -522,6 +593,39 @@ function animateEffect(sub: THREE.Group, e: Effect, t: number, camera: THREE.Cam
       pulse.scale.setScalar(1 + phase * 3);
       const mat = pulse.material as THREE.MeshBasicMaterial;
       mat.opacity = baseOp * (1 - phase) * 0.7;
+    }
+    return;
+  }
+
+  if (e.kind === "awakened") {
+    // 12 s lifecycle: 0–0.1 fade-in, 0.1–0.85 hold w/ motion, 0.85–1 fade-out.
+    const fadeIn = Math.min(1, t / 0.1);
+    const fadeOut = Math.min(1, Math.max(0, 1 - (t - 0.85) / 0.15));
+    const baseOp = fadeIn * fadeOut;
+
+    const beam = sub.getObjectByName("beam") as THREE.Mesh | undefined;
+    if (beam) {
+      const mat = beam.material as THREE.MeshBasicMaterial;
+      mat.opacity = baseOp * 0.85;
+      beam.scale.x = beam.scale.z = 1 + Math.sin(t * 18) * 0.18;
+    }
+    const halo = sub.getObjectByName("halo") as THREE.Mesh | undefined;
+    if (halo) {
+      // Expand outward then settle.
+      const settle = Math.min(1, t / 0.35);
+      halo.scale.setScalar(1 + (1 - settle) * 1.6 + 0.05 * Math.sin(t * 12));
+      halo.rotation.z += 0.03;
+      const mat = halo.material as THREE.MeshBasicMaterial;
+      mat.opacity = baseOp * 0.85;
+    }
+    for (let i = 0; i < 4; i++) {
+      const arm = sub.getObjectByName(`arm${i}`) as THREE.Mesh | undefined;
+      if (!arm) continue;
+      const mat = arm.material as THREE.MeshBasicMaterial;
+      // Stagger four pulses across the lifetime so the burst feels alive.
+      const phase = (t * 4 + i * 0.25) % 1;
+      arm.scale.x = 1 + phase * 1.5;
+      mat.opacity = baseOp * (1 - phase) * 0.9;
     }
     return;
   }

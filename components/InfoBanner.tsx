@@ -212,6 +212,17 @@ function ActivityRow({
       </li>
     );
   }
+  if (event.kind === "awakened") {
+    return (
+      <li className="grid grid-cols-[60px_1fr_60px] items-center gap-2 bg-ink/40 px-2 py-1">
+        <span className="opacity-70">[◉] AWAKE</span>
+        <button className="text-left underline" onClick={() => onNormie(event.tokenId)}>
+          {event.name} · #{event.tokenId}
+        </button>
+        <span className="opacity-60">agent</span>
+      </li>
+    );
+  }
   return (
     <li className="grid grid-cols-[60px_1fr_60px] items-center gap-2 bg-ink/40 px-2 py-1">
       <span className="opacity-70">[→] MOVE</span>
