@@ -54,8 +54,12 @@ interface LayoutInput {
 }
 
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5)); // ≈ 137.5°
-// Holder spiral begins just outside the new wider plaza (PLAZA_RADIUS = 380 in Plaza.tsx).
-const SPIRAL_BASE_RADIUS = 420;
+// Holder spiral begins just outside the plaza ring. PLAZA_RADIUS in Plaza.tsx
+// was bumped to 460 when the community shop kiosks were added at radius 380
+// (max outer extent ~410 incl. plinth + awning), so the spiral now starts at
+// 520 to leave a clean 60 u walkway between the plaza edge and the first
+// building. Keep this in sync if the plaza grows again.
+const SPIRAL_BASE_RADIUS = 520;
 const SPIRAL_GROWTH = 30;
 /** Outer city limit — used to size the ground, fog and horizon. */
 export const CITY_OUTER_RADIUS = 2200;

@@ -10,11 +10,14 @@ import { Text } from "@react-three/drei";
 // Clicking opens the linked community brand in a new tab — Normie City is a
 // directory of agents AND a discovery layer for community-built products.
 //
-// Shops live on a dedicated outer ring at radius 380, between the inner stat
-// pillars (260) and the expanded plaza edge (460). Four slots at the
-// diagonals (NE / SE / SW / NW) keep the cardinal compass clear for the
-// stat pillars. Placeholder slots advertise that the plaza is open to
-// further community collabs.
+// Plaza-area layout (full inventory — keep this in sync when adding things):
+//   N / E / S / W cardinals at radius 260 → 4 stat pillars (Plaza.tsx)
+//   NE diagonal at radius ~318            → TAG BATTLE arena (Arena.tsx)
+//   NW / SE / SW diagonals at radius 380  → shop kiosks (this file)
+//
+// The Arena was placed at NE first, so the shop ring uses the remaining
+// three diagonals. New community features should reuse one of those three
+// or pick a fresh angle that doesn't collide with anything above.
 
 const BRAND_OFF = "#e3e5e4";
 const BRAND_ON = "#48494b";
@@ -46,8 +49,12 @@ type ShopDef = {
 
 const SHOPS: ShopDef[] = [
   {
+    // NW diagonal — NE is occupied by the TAG BATTLE arena, so the coffee
+    // shop sits across from it on the opposite-facing diagonal. The plaza
+    // reads diagonally as: arena ↔ coffee, with COMING SOON slots on the
+    // remaining two corners.
     id: "8362-coffee",
-    angle: Math.PI / 4, // NE
+    angle: (7 * Math.PI) / 4, // NW
     label: "8362 COFFEE",
     sublabel: "fuel of web3",
     url: "https://8362coffee.com/",
@@ -57,7 +64,6 @@ const SHOPS: ShopDef[] = [
   },
   { id: "soon-se", angle: (3 * Math.PI) / 4, label: "COMING SOON" },
   { id: "soon-sw", angle: (5 * Math.PI) / 4, label: "COMING SOON" },
-  { id: "soon-nw", angle: (7 * Math.PI) / 4, label: "COMING SOON" },
 ];
 
 export default function Shops() {
