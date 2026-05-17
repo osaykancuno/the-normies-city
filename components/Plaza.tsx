@@ -6,6 +6,7 @@ import { Text } from "@react-three/drei";
 import * as THREE from "three";
 import useSWR from "swr";
 import { useCity } from "@/lib/store";
+import Shops from "./Shops";
 import type { ActivityEvent, HistoryStats } from "@/lib/types";
 
 const BRAND_OFF = "#e3e5e4";
@@ -14,7 +15,9 @@ const BRAND_INK = "#1a1b1d";
 
 // Plaza dimensions — wider footprint, taller / chunkier furniture so the centre
 // reads clearly from anywhere in the city without the user having to fly close.
-const PLAZA_RADIUS = 380;
+// Expanded from 380 → 460 to give the community-shop ring at radius 380 a
+// clean perimeter band around the inner stat pillars (260) and event totems.
+const PLAZA_RADIUS = 460;
 const STAT_RADIUS = 260;
 // Monumentation must dominate even the tallest whale skyscraper (~546u).
 const MONUMENT_TOTAL_HEIGHT = 820;
@@ -58,6 +61,7 @@ export default function Plaza() {
           value={String(statCards[i].value)}
         />
       ))}
+      <Shops />
       <EventTotems />
     </group>
   );
