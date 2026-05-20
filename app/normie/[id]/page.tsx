@@ -11,7 +11,56 @@ import {
   normieVersionSvgUrl,
 } from "@/lib/normies-api";
 import NormieImage from "@/components/NormieImage";
-import type { BurnCommit, NormieVersion } from "@/lib/types";
+import type { BurnCommit, NormieMetadata, NormieVersion, NormieCompact } from "@/lib/types";
+
+// Static fallback: load trait info from the baked normies-traits.json so the
+// page can render even when api.normies.art is unreachable. Cached in the
+// module scope to avoid re-reading the ~2 MB file on every request.
+let traitsSnapshot: (NormieCompact | null)[] | null | undefined = undefined;
+async function loadTraitsSnapshot(): Promise<(NormieCompact | null)[] | null> {
+  if (traitsSnapshot !== undefined) return traitsSnapshot;
+  try {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const raw = await fs.readFile(
+      path.join(process.cwd(), "public", "normies-traits.json"),
+      "utf8",
+    );
+    traitsSnapshot = JSON.parse(raw) as (NormieCompact | null)[];
+    return traitsSnapshot;
+  } catch {
+    traitsSnapshot = null;
+    return null;
+  }
+}
+
+/** Synthesise a NormieMetadata from the static traits snapshot when the
+ *  upstream metadata endpoint is unreachable. Lets /normie/[id] keep
+ *  rendering during Ponder outages. */
+async function fallbackMeta(id: number): Promise<NormieMetadata> {
+  const traits = await loadTraitsSnapshot();
+  const t = traits?.[id];
+  const attributes: NormieMetadata["attributes"] = [];
+  if (t) {
+    if (t.type) attributes.push({ trait_type: "Type", value: t.type });
+    if (t.gender) attributes.push({ trait_type: "Gender", value: t.gender });
+    if (t.age) attributes.push({ trait_type: "Age", value: t.age });
+    if (t.hairStyle) attributes.push({ trait_type: "Hair Style", value: t.hairStyle });
+    if (t.facialFeature) attributes.push({ trait_type: "Facial Feature", value: t.facialFeature });
+    if (t.eyes) attributes.push({ trait_type: "Eyes", value: t.eyes });
+    if (t.expression) attributes.push({ trait_type: "Expression", value: t.expression });
+    if (t.accessory) attributes.push({ trait_type: "Accessory", value: t.accessory });
+    if (t.level != null) attributes.push({ trait_type: "Level", value: t.level });
+    if (t.actionPoints != null) attributes.push({ trait_type: "Action Points", value: t.actionPoints });
+    if (t.customized) attributes.push({ trait_type: "Customized", value: "Yes" });
+  }
+  return {
+    name: `Normie #${id}`,
+    description: "Live metadata unavailable — showing baseline data from the on-chain traits snapshot.",
+    image: `/atlas.png#cell-${id}`,
+    attributes,
+  };
+}
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -37,8 +86,15 @@ export default async function NormiePage({ params }: PageProps) {
     fetchVersions(numId),
     fetchBurnsForReceiver(numId, 25),
   ]);
-  if (metaSettled.status !== "fulfilled") notFound();
-  const meta = metaSettled.value;
+  // Don't 404 on upstream failure — the token id is valid (we just checked
+  // it's in 0..9999), so we render with a synthesised meta from the baked
+  // traits snapshot instead. Only the API result is unavailable; the
+  // Normie itself still exists on-chain.
+  const meta: NormieMetadata =
+    metaSettled.status === "fulfilled"
+      ? metaSettled.value
+      : await fallbackMeta(numId);
+  const metaStale = metaSettled.status !== "fulfilled";
   const owner = ownerSettled.status === "fulfilled" ? ownerSettled.value.owner : null;
   const canvasInfo = canvasInfoSettled.status === "fulfilled" ? canvasInfoSettled.value : null;
   const canvasDiff = canvasDiffSettled.status === "fulfilled" ? canvasDiffSettled.value : null;
@@ -71,6 +127,14 @@ export default async function NormiePage({ params }: PageProps) {
         >
           ← BACK TO CITY
         </Link>
+
+        {metaStale && (
+          <div className="mb-4 border border-off/20 bg-on px-3 py-2 text-[10px] tracking-wider opacity-80">
+            ⚠ api.normies.art is currently unreachable — showing baseline
+            traits from the on-chain snapshot. Live owner, canvas, version,
+            and burn history may be incomplete until upstream recovers.
+          </div>
+        )}
 
         <div className="grid gap-8 md:grid-cols-[320px_1fr]">
           <div>
