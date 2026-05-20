@@ -10,7 +10,8 @@
     "build:atlas": "node scripts/build-atlas.mjs",
     "build:traits": "node scripts/build-traits.mjs",
     "build:holders": "node scripts/build-holders.mjs",
-    "build:data": "npm run build:traits && npm run build:holders && npm run build:atlas"
+    "build:agents": "node scripts/build-agents-snapshot.mjs",
+    "build:data": "npm run build:traits && npm run build:holders && npm run build:atlas && npm run build:agents"
   },
   "dependencies": {
     "@react-three/drei": "^10.0.0",

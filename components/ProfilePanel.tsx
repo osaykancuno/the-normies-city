@@ -5,6 +5,7 @@ import useSWR from "swr";
 import Link from "next/link";
 import { useCity } from "@/lib/store";
 import AwakenedPanel from "./AwakenedPanel";
+import NormieImage from "./NormieImage";
 import type {
   BurnedTokenInfo,
   CanvasDiff,
@@ -101,14 +102,7 @@ function HolderPanel({ address }: { address: string }) {
                   className="block aspect-square w-full bg-off hover:ring-1 hover:ring-off"
                   title={`#${id}`}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`https://api.normies.art/normie/${id}/image.svg`}
-                    alt={`#${id}`}
-                    className="h-full w-full"
-                    style={{ imageRendering: "pixelated" }}
-                    loading="lazy"
-                  />
+                  <NormieImage tokenId={id} overlaySvg={false} title={`#${id}`} />
                 </button>
               </li>
             ))}
@@ -153,22 +147,19 @@ function NormiePanel({ tokenId }: { tokenId: number }) {
     <Frame title={`NORMIE #${tokenId}`} onClose={() => setSelection(null)}>
       <div className="grid grid-cols-2 gap-1">
         <Pane label="NOW">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`https://api.normies.art/normie/${tokenId}/image.svg`}
-            alt={`#${tokenId}`}
-            className="h-full w-full"
-            style={{ imageRendering: "pixelated" }}
-          />
+          {/* NormieImage renders the atlas baseline first (always works) and
+              fades in the canvas-aware SVG on top when the upstream is up. */}
+          <NormieImage tokenId={tokenId} title={`#${tokenId}`} />
         </Pane>
         {customized && (
           <Pane label="ORIGINAL">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`https://api.normies.art/normie/${tokenId}/original/image.svg`}
-              alt={`#${tokenId} original`}
-              className="h-full w-full"
-              style={{ imageRendering: "pixelated" }}
+            {/* The "original" view is the pre-Canvas pixel state. The atlas
+                IS the original baseline, so disable the SVG overlay here —
+                we don't want to fade in the current customised version. */}
+            <NormieImage
+              tokenId={tokenId}
+              overlaySvg={false}
+              title={`#${tokenId} original`}
             />
           </Pane>
         )}
@@ -238,13 +229,7 @@ function BurnedPanel({ tokenId }: { tokenId: number }) {
   return (
     <Frame title={`BURNED · #${tokenId}`} onClose={() => setSelection(null)}>
       <div className="mx-auto aspect-square w-full max-w-[200px] bg-off opacity-70">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={`https://api.normies.art/history/burned/${tokenId}/image.svg`}
-          alt={`#${tokenId} burned`}
-          className="h-full w-full"
-          style={{ imageRendering: "pixelated" }}
-        />
+        <NormieImage tokenId={tokenId} burned title={`#${tokenId} burned`} />
       </div>
       {data && (
         <dl className="mt-3 grid grid-cols-2 gap-y-1 text-[10px]">

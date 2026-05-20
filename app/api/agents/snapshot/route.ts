@@ -6,6 +6,8 @@ import {
 } from "@/lib/normies-api";
 import { cachedGetJson } from "@/lib/api-cache";
 import type { AwakenedRow } from "@/lib/types";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 export const revalidate = 60;
 export const runtime = "nodejs";
@@ -70,6 +72,39 @@ function parseTagline(description: string | null | undefined): string {
   if (!description) return "";
   const first = description.split(/\.(\s|$)/, 1)[0] ?? "";
   return first.trim();
+}
+
+interface StaticSnapshot {
+  awakened: AwakenedRow[];
+  asOf: string;
+  total: number;
+  namedCount?: number;
+}
+
+// Static fallback snapshot baked into the repo at public/agents-snapshot.json.
+// Served when the live pipeline yields zero rows (Ponder outage on a cold
+// Vercel container). Read-once-per-cold-start and held in memory.
+let staticSnapshotCache: StaticSnapshot | null | undefined = undefined;
+async function loadStaticSnapshot(): Promise<StaticSnapshot | null> {
+  if (staticSnapshotCache !== undefined) return staticSnapshotCache;
+  try {
+    const filepath = path.join(
+      process.cwd(),
+      "public",
+      "agents-snapshot.json",
+    );
+    const raw = await fs.readFile(filepath, "utf8");
+    const parsed = JSON.parse(raw) as StaticSnapshot;
+    if (Array.isArray(parsed.awakened) && parsed.awakened.length > 0) {
+      staticSnapshotCache = parsed;
+      return parsed;
+    }
+    staticSnapshotCache = null;
+    return null;
+  } catch {
+    staticSnapshotCache = null;
+    return null;
+  }
 }
 
 /** Parallel-fetch with bounded concurrency. Returns one result per input id,
@@ -209,14 +244,49 @@ export async function GET() {
     }
     rows.sort((a, b) => a.tokenId - b.tokenId);
 
+    // Defensive: if the live pipeline somehow returned zero rows but we have
+    // a baked snapshot on disk, prefer the snapshot. This catches the case
+    // where every chunk silently 502s and ends up in the cache with an empty
+    // bindings map.
+    if (rows.length === 0) {
+      const fallback = await loadStaticSnapshot();
+      if (fallback && fallback.awakened.length > 0) {
+        return NextResponse.json({
+          awakened: fallback.awakened,
+          asOf: new Date().toISOString(),
+          total: fallback.awakened.length,
+          namedCount: fallback.awakened.filter((r) => r.name).length,
+          stale: true,
+          source: "static-snapshot",
+          snapshotAsOf: fallback.asOf,
+        });
+      }
+    }
+
     return NextResponse.json({
       awakened: rows,
       asOf: new Date().toISOString(),
       total: rows.length,
       namedCount: rows.filter((r) => r.name).length,
+      source: "live",
     });
   } catch (err) {
+    // Live pipeline threw (cold container + upstream down + no in-memory
+    // cache). Serve the baked snapshot so the agent layer keeps rendering.
     console.error("agents snapshot route failed:", err);
+    const fallback = await loadStaticSnapshot();
+    if (fallback && fallback.awakened.length > 0) {
+      return NextResponse.json({
+        awakened: fallback.awakened,
+        asOf: new Date().toISOString(),
+        total: fallback.awakened.length,
+        namedCount: fallback.awakened.filter((r) => r.name).length,
+        stale: true,
+        source: "static-snapshot",
+        snapshotAsOf: fallback.asOf,
+        error: String(err),
+      });
+    }
     return NextResponse.json(
       { awakened: [], asOf: new Date().toISOString(), total: 0, error: String(err) },
       { status: 502 },

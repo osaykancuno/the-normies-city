@@ -8,10 +8,9 @@ import {
   fetchNormieMetadata,
   fetchNormieOwner,
   fetchVersions,
-  normieImageSvgUrl,
-  normieOriginalSvgUrl,
   normieVersionSvgUrl,
 } from "@/lib/normies-api";
+import NormieImage from "@/components/NormieImage";
 import type { BurnCommit, NormieVersion } from "@/lib/types";
 
 interface PageProps {
@@ -77,21 +76,16 @@ export default async function NormiePage({ params }: PageProps) {
           <div>
             <div className="grid grid-cols-2 gap-1">
               <Pane label="NOW">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={normieImageSvgUrl(numId)}
-                  alt={meta.name}
-                  className="h-full w-full"
-                  style={{ imageRendering: "pixelated" }}
-                />
+                {/* Atlas baseline always renders; canvas-aware SVG fades in
+                    on top if upstream is reachable. */}
+                <NormieImage tokenId={numId} title={meta.name} />
               </Pane>
               <Pane label="ORIGINAL">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={normieOriginalSvgUrl(numId)}
-                  alt={`${meta.name} original`}
-                  className="h-full w-full"
-                  style={{ imageRendering: "pixelated" }}
+                {/* The atlas IS the pre-Canvas original — no SVG overlay. */}
+                <NormieImage
+                  tokenId={numId}
+                  overlaySvg={false}
+                  title={`${meta.name} original`}
                 />
               </Pane>
             </div>
@@ -243,14 +237,7 @@ VIEW NORMIES ON OPENSEA →
                     <li key={tid}>
                       <Link href={`/normie/${tid}`} className="block">
                         <div className="aspect-square w-full bg-off" title={`#${tid}`}>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={normieImageSvgUrl(tid)}
-                            alt={`#${tid}`}
-                            className="h-full w-full"
-                            style={{ imageRendering: "pixelated" }}
-                            loading="lazy"
-                          />
+                          <NormieImage tokenId={tid} overlaySvg={false} />
                         </div>
                       </Link>
                     </li>

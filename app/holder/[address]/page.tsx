@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 import {
   fetchAllBurnsForAddress,
   fetchHolder,
-  normieImageSvgUrl,
 } from "@/lib/normies-api";
 import PortfolioHeritage from "@/components/PortfolioHeritage";
+import NormieImage from "@/components/NormieImage";
 
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 const NORMIES_CONTRACT = "0x9Eb6E2025B64f340691e424b7fe7022fFDE12438";
@@ -151,14 +151,7 @@ export default async function HolderPage({ params }: PageProps) {
                 <li key={id}>
                   <Link href={`/normie/${id}`}>
                     <div className="aspect-square w-full bg-off" title={`#${id}`}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={normieImageSvgUrl(id)}
-                        alt={`#${id}`}
-                        className="h-full w-full"
-                        style={{ imageRendering: "pixelated" }}
-                        loading="lazy"
-                      />
+                      <NormieImage tokenId={id} overlaySvg={false} />
                     </div>
                   </Link>
                 </li>
