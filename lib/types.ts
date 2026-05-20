@@ -1,8 +1,11 @@
 // Shared types across client + server. Mirrors the api.normies.art shape.
 
+// Trait enums mirror the official api.normies.art docs (V4 renderer).
+// The `| string` widens each union so the app keeps rendering if upstream
+// ever introduces a new value before we update the literals.
 export type NormieType = "Human" | "Cat" | "Agent" | "Alien";
-export type NormieGender = "Male" | "Female" | string;
-export type NormieAge = "Young" | "Adult" | "Elder" | string;
+export type NormieGender = "Male" | "Female" | "Non-Binary" | string;
+export type NormieAge = "Young" | "Middle-Aged" | "Old" | string;
 
 export interface NormieCompact {
   exists: boolean;

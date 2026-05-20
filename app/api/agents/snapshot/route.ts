@@ -4,6 +4,7 @@ import {
   fetchAgentMetadata,
   fetchAgentPersonaPreview,
 } from "@/lib/normies-api";
+import { cachedGetJson } from "@/lib/api-cache";
 import type { AwakenedRow } from "@/lib/types";
 
 export const revalidate = 60;
@@ -41,12 +42,14 @@ type ListItem = {
 };
 
 async function fetchRecentList(): Promise<ListItem[]> {
+  // Wrapped by the api-cache stale-while-error layer so a Ponder outage
+  // doesn't blank the name harvest; we keep using the last good list of
+  // recent agents until upstream recovers.
   try {
-    const res = await fetch(`${BASE}/agents/list?limit=100`, {
-      next: { revalidate: 30 },
-    });
-    if (!res.ok) return [];
-    const json = (await res.json()) as { items?: ListItem[] };
+    const json = await cachedGetJson<{ items?: ListItem[] }>(
+      `${BASE}/agents/list?limit=100`,
+      { revalidate: 30 },
+    );
     return json.items ?? [];
   } catch {
     return [];

@@ -8,6 +8,7 @@ import PlayModal from "@/components/PlayModal";
 import NewHoldersBadge from "@/components/NewHoldersBadge";
 import RefreshButton from "@/components/RefreshButton";
 import AgentModeToggle from "@/components/AgentModeToggle";
+import UpstreamBadge from "@/components/UpstreamBadge";
 
 export default function Home() {
   return (
@@ -43,6 +44,10 @@ export default function Home() {
 
           {/* Agent Mode — dims dormant Normies and highlights awakened ERC-8004 agents. */}
           <AgentModeToggle />
+
+          {/* Only visible when upstream api.normies.art is down — tells the
+              user the city is running on cached data. */}
+          <UpstreamBadge />
 
           {/* Canvas state. */}
           <CanvasStatusBanner />

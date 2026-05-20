@@ -1,6 +1,12 @@
 // Server-side client. Always called from Next route handlers or RSC — never from the
-// browser. Uses Next fetch cache for edge-level deduping under the 60 req/min budget.
+// browser. Two layers of protection sit on top of each request:
+//   1. Vercel edge cache (`next.revalidate`) deduplicates concurrent traffic.
+//   2. lib/api-cache `cachedGetJson` keeps the last-known-good response per
+//      URL in server memory and serves it transparently when the upstream
+//      Ponder indexer 502s — a routine occurrence that used to blank out
+//      every history-driven page in the app.
 
+import { cachedFetchJson, cachedGetJson } from "./api-cache";
 import type {
   AgentBinding,
   AgentCard,
@@ -17,12 +23,19 @@ import type {
   NormieVersion,
 } from "./types";
 
-const BASE = process.env.NORMIES_API_BASE || "https://api.normies.art";
+export const BASE = process.env.NORMIES_API_BASE || "https://api.normies.art";
 
 async function get<T>(path: string, revalidate: number): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, { next: { revalidate } });
-  if (!res.ok) throw new Error(`normies-api ${path} → ${res.status}`);
-  return res.json() as Promise<T>;
+  return cachedGetJson<T>(`${BASE}${path}`, { revalidate });
+}
+
+/** Same as `get<T>` but exposes the cache metadata. Use it from route
+ *  handlers that want to surface a stale-data indicator to the client. */
+export async function getWithFreshness<T>(
+  path: string,
+  revalidate: number,
+): Promise<{ data: T; stale: boolean; lastFetched: number | null }> {
+  return cachedFetchJson<T>(`${BASE}${path}`, { revalidate });
 }
 
 // ---------- core ----------
@@ -149,19 +162,24 @@ export const fetchAgentPersonaPreview = (tokenId: number) =>
 
 /** Batch resolve binding for a set of token IDs. The upstream returns only the
  *  awakened entries — non-awakened tokens are omitted from the response, so a
- *  10 k-id payload comes back tiny (~18 KB for the 52 awakened today). */
+ *  10 k-id payload comes back tiny (~18 KB for the 52 awakened today).
+ *  Wrapped by cachedFetchJson so we keep serving the last-known good batch
+ *  when the upstream is down. */
 export async function fetchAgentBindingsBatch(
   tokenIds: number[],
 ): Promise<Record<string, AgentBinding>> {
-  const res = await fetch(`${BASE}/agents/binding/batch`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ tokenIds }),
-    next: { revalidate: 30 },
+  const body = JSON.stringify({ tokenIds });
+  const { data } = await cachedFetchJson<{
+    bindings?: Record<string, AgentBinding>;
+  }>(`${BASE}/agents/binding/batch`, {
+    revalidate: 30,
+    init: {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body,
+    },
   });
-  if (!res.ok) throw new Error(`agents-batch ${res.status}`);
-  const json = (await res.json()) as { bindings?: Record<string, AgentBinding> };
-  return json.bindings ?? {};
+  return data.bindings ?? {};
 }
 
 // ---------- holders ----------
