@@ -18,7 +18,11 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   try {
     const info = await fetchAgentInfo(numId);
     return NextResponse.json(info);
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 502 });
+  } catch {
+    // Stale-friendly response: SWR clients keep polling at their normal
+    // cadence (no exponential backoff) and pick up live data when
+    // upstream recovers. The AwakenedPanel already gracefully renders
+    // with just the name/tagline it already has from the snapshot.
+    return NextResponse.json({ tokenId: String(numId), stale: true });
   }
 }

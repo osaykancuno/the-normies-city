@@ -12,7 +12,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   try {
     const info = await fetchBurnedToken(numId);
     return NextResponse.json(info);
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 502 });
+  } catch {
+    return NextResponse.json({ tokenId: String(numId), stale: true });
   }
 }

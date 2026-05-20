@@ -12,7 +12,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   try {
     const burns = await fetchAllBurnsForReceiver(numId);
     return NextResponse.json(burns);
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 502 });
+  } catch {
+    // [] keeps PortfolioHeritage in normal polling mode; counts show 0
+    // for this token until upstream recovers.
+    return NextResponse.json([]);
   }
 }

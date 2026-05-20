@@ -6,6 +6,9 @@ import Link from "next/link";
 import { useCity } from "@/lib/store";
 import AwakenedPanel from "./AwakenedPanel";
 import NormieImage from "./NormieImage";
+import CanvasDiffOverlay from "./CanvasDiffOverlay";
+import VersionTimeline from "./VersionTimeline";
+import type { NormieVersion } from "@/lib/types";
 import type {
   BurnedTokenInfo,
   CanvasDiff,
@@ -135,13 +138,28 @@ function NormiePanel({ tokenId }: { tokenId: number }) {
   const isAwakened = useCity((s) => s.awakenedSet.has(tokenId));
   const compact = traits?.[tokenId];
 
-  const { data: meta } = useSWR<NormieMetadata>(`/api/normie/${tokenId}`, fetcher);
+  // refreshInterval lets every SWR consumer in this panel automatically
+  // recover when api.normies.art comes back online — no manual reload
+  // needed. 30 s matches the upstream Vercel edge cache TTL so we're not
+  // hammering the route between hits.
+  const { data: meta } = useSWR<NormieMetadata>(
+    `/api/normie/${tokenId}`,
+    fetcher,
+    { refreshInterval: 30_000, revalidateOnFocus: true, revalidateOnReconnect: true },
+  );
   const { data: canvas } = useSWR<{ info: CanvasInfo | null; diff: CanvasDiff | null }>(
     `/api/normie/${tokenId}/canvas`,
-    fetcher
+    fetcher,
+    { refreshInterval: 30_000, revalidateOnFocus: true, revalidateOnReconnect: true },
+  );
+  const { data: versions } = useSWR<NormieVersion[]>(
+    `/api/normie/${tokenId}/versions`,
+    fetcher,
+    { refreshInterval: 60_000, revalidateOnFocus: true, revalidateOnReconnect: true },
   );
 
   const customized = compact?.customized || canvas?.info?.customized;
+  const hasVersions = Array.isArray(versions) && versions.length > 0;
 
   return (
     <Frame title={`NORMIE #${tokenId}`} onClose={() => setSelection(null)}>
@@ -183,14 +201,34 @@ function NormiePanel({ tokenId }: { tokenId: number }) {
       )}
 
       {customized && canvas?.diff && (canvas.diff.addedCount || canvas.diff.removedCount) ? (
-        <div className="mt-3 border border-off/15 px-2 py-1.5 text-[10px]">
-          <div className="opacity-50">PIXEL DIFF</div>
-          <div className="flex gap-3 tabular-nums">
-            <span>+{canvas.diff.addedCount ?? 0}</span>
-            <span>−{canvas.diff.removedCount ?? 0}</span>
+        <div className="mt-3 grid grid-cols-[1fr_1fr] gap-2">
+          <Pane label="DIFF">
+            <CanvasDiffOverlay diff={canvas.diff} />
+          </Pane>
+          <div className="flex flex-col justify-between border border-off/15 px-2 py-1.5 text-[10px]">
+            <div>
+              <div className="opacity-50 tracking-widest">PIXEL DIFF</div>
+              <div className="mt-1 flex gap-3 tabular-nums">
+                <span>+{canvas.diff.addedCount ?? 0}</span>
+                <span>−{canvas.diff.removedCount ?? 0}</span>
+              </div>
+            </div>
+            {canvas.diff.netChange != null && (
+              <div className="opacity-60">net {canvas.diff.netChange > 0 ? "+" : ""}{canvas.diff.netChange}</div>
+            )}
           </div>
         </div>
       ) : null}
+
+      {hasVersions && (
+        <div className="mt-3">
+          <div className="mb-1 flex items-baseline justify-between text-[9px] tracking-widest opacity-50">
+            <span>EVOLUTION</span>
+            <span className="tabular-nums opacity-70">{versions!.length} versions</span>
+          </div>
+          <VersionTimeline tokenId={tokenId} versions={versions!} />
+        </div>
+      )}
 
       {meta && <div className="mt-3 truncate text-[10px] opacity-60">{meta.name}</div>}
 
@@ -224,7 +262,11 @@ function NormiePanel({ tokenId }: { tokenId: number }) {
 
 function BurnedPanel({ tokenId }: { tokenId: number }) {
   const setSelection = useCity((s) => s.setSelection);
-  const { data } = useSWR<BurnedTokenInfo>(`/api/burned/${tokenId}`, fetcher);
+  const { data } = useSWR<BurnedTokenInfo>(`/api/burned/${tokenId}`, fetcher, {
+    refreshInterval: 60_000,
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true,
+  });
 
   return (
     <Frame title={`BURNED · #${tokenId}`} onClose={() => setSelection(null)}>
