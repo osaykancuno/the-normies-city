@@ -23,6 +23,7 @@ export default function LiveDataLoader() {
   const applyBurns = useCity((s) => s.applyBurns);
   const setAwakenedSnapshot = useCity((s) => s.setAwakenedSnapshot);
   const markAwakened = useCity((s) => s.markAwakened);
+  const hydrateAwakenedFromStorage = useCity((s) => s.hydrateAwakenedFromStorage);
   // Bumping this nonce from the header refresh button restarts the polls so the
   // user gets fresh data immediately instead of waiting up to 30 s.
   const refreshNonce = useCity((s) => s.refreshNonce);
@@ -137,7 +138,13 @@ export default function LiveDataLoader() {
   // because the upstream batch endpoint returns only awakened entries. First
   // tick seeds the set silently; subsequent ticks emit one `awakened` event
   // per newly-bound Normie.
+  //
+  // Hydrate from localStorage BEFORE the first poll so the city already
+  // shows the last-known-good awakened set even if the snapshot route 502s
+  // on a cold Vercel container. A successful poll then overwrites with
+  // fresh data.
   useEffect(() => {
+    hydrateAwakenedFromStorage();
     const seen = new Set<number>();
     let bootstrapped = false;
     let stopped = false;
@@ -201,7 +208,7 @@ export default function LiveDataLoader() {
       stopped = true;
       if (timer) clearTimeout(timer);
     };
-  }, [setAwakenedSnapshot, markAwakened, pushActivity, refreshNonce]);
+  }, [setAwakenedSnapshot, markAwakened, pushActivity, refreshNonce, hydrateAwakenedFromStorage]);
 
   return null;
 }

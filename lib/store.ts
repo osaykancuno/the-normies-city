@@ -24,6 +24,60 @@ export interface FlyTarget {
 
 const LIFECYCLE_S = 1.6; // duration of rise / collapse animations.
 
+// ---------- localStorage persistence for the awakened set ----------
+// Keeps the agent layer visible across page reloads, even when the upstream
+// /api/agents/snapshot route is down (cold Vercel container + Ponder
+// outage). The payload is small (~50 bytes/row × ~500 awakened today ≈ 25
+// KB) so we can safely round-trip the entire set through JSON every time
+// it changes. Bumped via the `v` field whenever the schema evolves.
+
+const AWAKENED_STORAGE_KEY = "normie-city.awakened.v1";
+
+interface PersistedAwakened {
+  v: 1;
+  ts: number;
+  rows: AwakenedRow[];
+}
+
+function loadAwakenedFromStorage(): PersistedAwakened | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(AWAKENED_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PersistedAwakened;
+    if (parsed.v !== 1 || !Array.isArray(parsed.rows)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveAwakenedToStorage(rows: AwakenedRow[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    const payload: PersistedAwakened = { v: 1, ts: Date.now(), rows };
+    window.localStorage.setItem(AWAKENED_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    // localStorage may be disabled (private browsing, quota exceeded) —
+    // we silently degrade to in-memory only.
+  }
+}
+
+function awakenedAgentsToRows(
+  agents: Map<number, { agentId: string; name: string; tagline: string }>,
+): AwakenedRow[] {
+  const rows: AwakenedRow[] = [];
+  for (const [tokenId, meta] of agents) {
+    rows.push({
+      tokenId,
+      agentId: meta.agentId,
+      name: meta.name,
+      tagline: meta.tagline,
+    });
+  }
+  return rows;
+}
+
 interface CityState {
   traits: (NormieCompact | null)[] | null;
   holders: HolderState | null;
@@ -64,6 +118,11 @@ interface CityState {
   setAwakenedSnapshot: (rows: AwakenedRow[]) => void;
   markAwakened: (row: AwakenedRow) => void;
   setAgentMode: (on: boolean) => void;
+  /** Rehydrate the awakened slices from localStorage. Called from
+   *  LiveDataLoader before the first /api/agents/snapshot poll so the city
+   *  shows last-known-good data even when upstream Ponder is down and the
+   *  Vercel container is cold (no server-side cache). */
+  hydrateAwakenedFromStorage: () => void;
 
   setTraits: (traits: (NormieCompact | null)[]) => void;
   setHolders: (byToken: (string | null)[]) => void;
@@ -170,6 +229,9 @@ export const useCity = create<CityState>((set, get) => ({
       nameIndex: names,
       awakenedVersion: s.awakenedVersion + 1,
     }));
+    // Write-through to localStorage so a future cold-start reload survives
+    // a Ponder outage with the same data the user just saw.
+    saveAwakenedToStorage(rows);
   },
 
   markAwakened: (row) => {
@@ -201,9 +263,38 @@ export const useCity = create<CityState>((set, get) => ({
         awakenedVersion: isNew ? s.awakenedVersion + 1 : s.awakenedVersion,
       };
     });
+    // Persist the updated set — single-row write-through. We serialise the
+    // current map after the set call rather than re-reading state inside
+    // the writer (avoids races) by recomputing from the inputs.
+    const refreshed = get();
+    saveAwakenedToStorage(awakenedAgentsToRows(refreshed.awakenedAgents));
   },
 
   setAgentMode: (on) => set({ agentMode: on }),
+
+  hydrateAwakenedFromStorage: () => {
+    const stored = loadAwakenedFromStorage();
+    if (!stored || stored.rows.length === 0) return;
+    const { awakenedSet } = get();
+    // Skip if the live state is already richer than what we have on disk —
+    // we don't want to overwrite a freshly-fetched snapshot with a stale
+    // localStorage copy after a successful poll.
+    if (awakenedSet.size >= stored.rows.length) return;
+    const set_ = new Set<number>();
+    const agents = new Map<number, { agentId: string; name: string; tagline: string }>();
+    const names = new Map<string, number>();
+    for (const r of stored.rows) {
+      set_.add(r.tokenId);
+      agents.set(r.tokenId, { agentId: r.agentId, name: r.name, tagline: r.tagline });
+      if (r.name) names.set(r.name.toLowerCase(), r.tokenId);
+    }
+    set((s) => ({
+      awakenedSet: set_,
+      awakenedAgents: agents,
+      nameIndex: names,
+      awakenedVersion: s.awakenedVersion + 1,
+    }));
+  },
 
   setTraits: (traits) => set({ traits }),
 
