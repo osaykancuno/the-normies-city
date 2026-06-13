@@ -9,6 +9,8 @@ import NewHoldersBadge from "@/components/NewHoldersBadge";
 import RefreshButton from "@/components/RefreshButton";
 import AgentModeToggle from "@/components/AgentModeToggle";
 import UpstreamBadge from "@/components/UpstreamBadge";
+import WalkModeToggle from "@/components/WalkModeToggle";
+import WalkHud from "@/components/WalkHud";
 
 export default function Home() {
   return (
@@ -45,6 +47,9 @@ export default function Home() {
           {/* Agent Mode — dims dormant Normies and highlights awakened ERC-8004 agents. */}
           <AgentModeToggle />
 
+          {/* First-person street-level exploration (desktop). */}
+          <WalkModeToggle />
+
           {/* Only visible when upstream api.normies.art is down — tells the
               user the city is running on cached data. */}
           <UpstreamBadge />
@@ -73,11 +78,12 @@ export default function Home() {
       <ProfilePanel />
       <InfoBanner />
       <PlayModal />
+      <WalkHud />
 
       <footer className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center p-3 text-[10px] text-off/70">
         {/* Long hint on tablet+, short on phones — saves a row of vertical space. */}
         <span className="hidden bg-on px-2 py-1 tracking-wider sm:inline">
-          1 building = 1 holder · facade shows every Normie · click monument · click TAG BATTLE wall · drag = orbit · F = fly
+          1 building = 1 holder · facade shows every Normie · click monument · drag = orbit · F = fly · ENTER STREET VIEW to walk
         </span>
         <span className="bg-on px-2 py-1 tracking-wider sm:hidden">
           drag · pinch · tap to open

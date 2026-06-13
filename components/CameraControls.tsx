@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { OrbitControls, FlyControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { useCity } from "@/lib/store";
 import { CITY_OUTER_RADIUS } from "@/lib/layout";
+import WalkControls from "./WalkControls";
 
 // Keep the orbit camera inside the city. The user can roam freely but never
 // orbits out past the city limit — gives the feeling of "always inside".
@@ -14,18 +15,26 @@ const CAMERA_MIN_DISTANCE = 140;
 const CAMERA_MAX_DISTANCE = CITY_OUTER_RADIUS * 1.05;
 
 export default function CameraControls() {
-  const [fly, setFly] = useState(false);
+  const viewMode = useCity((s) => s.viewMode);
+  const setViewMode = useCity((s) => s.setViewMode);
   const flyTo = useCity((s) => s.flyTo);
   const orbitRef = useRef<OrbitControlsImpl>(null);
   const { camera } = useThree();
 
+  const fly = viewMode === "fly";
+  const walk = viewMode === "walk";
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "f" || e.key === "F") setFly((v) => !v);
+      // F toggles fly. Ignored while walking — walk mode owns the keyboard
+      // (WASD) and exits via ESC / its own toggle.
+      if ((e.key === "f" || e.key === "F") && viewMode !== "walk") {
+        setViewMode(viewMode === "fly" ? "orbit" : "fly");
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [viewMode, setViewMode]);
 
   const animRef = useRef<{
     fromCam: THREE.Vector3;
@@ -78,11 +87,16 @@ export default function CameraControls() {
 
     // Hard clamp: if the camera somehow drifted outside the city sphere (e.g. via
     // post-fly orbiting), pull it back. This is the camera-based "city limit".
-    if (camera.position.length() > CAMERA_MAX_DISTANCE) {
+    // Skip in walk mode — a ground-walking camera has its own horizontal-radius
+    // clamp (lib/collision) and this spherical clamp would yank it upward.
+    if (!walk && camera.position.length() > CAMERA_MAX_DISTANCE) {
       camera.position.setLength(CAMERA_MAX_DISTANCE);
     }
   });
 
+  if (walk) {
+    return <WalkControls />;
+  }
   if (fly) {
     return <FlyControls movementSpeed={600} rollSpeed={0.6} dragToLook />;
   }

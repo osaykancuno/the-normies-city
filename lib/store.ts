@@ -63,6 +63,33 @@ function saveAwakenedToStorage(rows: AwakenedRow[]): void {
   }
 }
 
+const AVATAR_STORAGE_KEY = "normie-city.avatar";
+
+function loadAvatarId(): number {
+  if (typeof window === "undefined") return randomNormieId();
+  try {
+    const raw = window.localStorage.getItem(AVATAR_STORAGE_KEY);
+    const n = raw == null ? NaN : Number(raw);
+    if (Number.isInteger(n) && n >= 0 && n <= 9999) return n;
+  } catch {
+    // ignore
+  }
+  return randomNormieId();
+}
+
+function saveAvatarId(id: number): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(AVATAR_STORAGE_KEY, String(id));
+  } catch {
+    // ignore
+  }
+}
+
+function randomNormieId(): number {
+  return Math.floor(Math.random() * 10000);
+}
+
 function awakenedAgentsToRows(
   agents: Map<number, { agentId: string; name: string; tagline: string }>,
 ): AwakenedRow[] {
@@ -123,6 +150,18 @@ interface CityState {
    *  shows last-known-good data even when upstream Ponder is down and the
    *  Vercel container is cold (no server-side cache). */
   hydrateAwakenedFromStorage: () => void;
+
+  // ---------- camera / exploration ----------
+  /** Active camera scheme. "orbit" (default) and "fly" are the original
+   *  third-person diorama views; "walk" is the first-person street-level
+   *  explorer. Promoted from local CameraControls state so the toggle pill,
+   *  the HUD, and the controls all read one source of truth. */
+  viewMode: "orbit" | "fly" | "walk";
+  setViewMode: (mode: "orbit" | "fly" | "walk") => void;
+  /** Normie ID the visitor "wears" as their avatar in walk mode (phase 2
+   *  presence). Persisted to localStorage; defaults to a random id. */
+  avatarNormieId: number;
+  setAvatarNormieId: (id: number) => void;
 
   setTraits: (traits: (NormieCompact | null)[]) => void;
   setHolders: (byToken: (string | null)[]) => void;
@@ -213,6 +252,15 @@ export const useCity = create<CityState>((set, get) => ({
   nameIndex: new Map(),
   agentMode: false,
   awakenedVersion: 0,
+
+  viewMode: "orbit",
+  setViewMode: (mode) => set({ viewMode: mode }),
+  avatarNormieId: loadAvatarId(),
+  setAvatarNormieId: (id) => {
+    const clamped = Number.isInteger(id) && id >= 0 && id <= 9999 ? id : 0;
+    saveAvatarId(clamped);
+    set({ avatarNormieId: clamped });
+  },
 
   setAwakenedSnapshot: (rows) => {
     const set_ = new Set<number>();

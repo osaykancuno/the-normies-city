@@ -9,6 +9,7 @@ import { CITY_OUTER_RADIUS } from "@/lib/layout";
 import { currentSkyState, type SkyState } from "@/lib/daynight";
 import InstancedNormies from "./InstancedNormies";
 import AwakenedAntennas from "./AwakenedAntennas";
+import Streets from "./Streets";
 import CameraControls from "./CameraControls";
 import ActivityEffects from "./ActivityEffects";
 import LiveDataLoader from "./LiveDataLoader";
@@ -132,6 +133,7 @@ export default function City() {
         color={BRAND_OFF}
       />
       <Ground />
+      <Streets />
       <Horizon skyColor={skyColor} />
       <Stars />
       <Suspense fallback={null}>
