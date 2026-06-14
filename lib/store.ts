@@ -162,6 +162,10 @@ interface CityState {
    *  presence). Persisted to localStorage; defaults to a random id. */
   avatarNormieId: number;
   setAvatarNormieId: (id: number) => void;
+  /** Whether the "choose your Normie then enter" banner is open. Clicking
+   *  ENTER STREET VIEW opens it; confirming there drops into walk mode. */
+  streetEntryOpen: boolean;
+  setStreetEntryOpen: (open: boolean) => void;
 
   setTraits: (traits: (NormieCompact | null)[]) => void;
   setHolders: (byToken: (string | null)[]) => void;
@@ -261,6 +265,8 @@ export const useCity = create<CityState>((set, get) => ({
     saveAvatarId(clamped);
     set({ avatarNormieId: clamped });
   },
+  streetEntryOpen: false,
+  setStreetEntryOpen: (open) => set({ streetEntryOpen: open }),
 
   setAwakenedSnapshot: (rows) => {
     const set_ = new Set<number>();

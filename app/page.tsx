@@ -11,6 +11,7 @@ import AgentModeToggle from "@/components/AgentModeToggle";
 import UpstreamBadge from "@/components/UpstreamBadge";
 import WalkModeToggle from "@/components/WalkModeToggle";
 import WalkHud from "@/components/WalkHud";
+import StreetEntryModal from "@/components/StreetEntryModal";
 
 export default function Home() {
   return (
@@ -79,6 +80,7 @@ export default function Home() {
       <InfoBanner />
       <PlayModal />
       <WalkHud />
+      <StreetEntryModal />
 
       <footer className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center p-3 text-[10px] text-off/70">
         {/* Long hint on tablet+, short on phones — saves a row of vertical space. */}

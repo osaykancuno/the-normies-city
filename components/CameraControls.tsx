@@ -85,12 +85,34 @@ export default function CameraControls() {
       if (t >= 1) animRef.current = null;
     }
 
-    // Hard clamp: if the camera somehow drifted outside the city sphere (e.g. via
-    // post-fly orbiting), pull it back. This is the camera-based "city limit".
-    // Skip in walk mode — a ground-walking camera has its own horizontal-radius
-    // clamp (lib/collision) and this spherical clamp would yank it upward.
-    if (!walk && camera.position.length() > CAMERA_MAX_DISTANCE) {
+    // City-limit clamps, per mode:
+    //  - fly: anchor the free camera to a sphere around origin so it never
+    //    leaves the city.
+    //  - orbit: with right-drag panning enabled the orbit TARGET can travel,
+    //    so we instead clamp the target to within the city disc (and near the
+    //    ground). The camera then stays bounded via min/maxDistance. This lets
+    //    you pan the centre out to the city edge without the old sphere clamp
+    //    fighting the pan.
+    //  - walk: skipped entirely (lib/collision owns the bounds).
+    if (fly && camera.position.length() > CAMERA_MAX_DISTANCE) {
       camera.position.setLength(CAMERA_MAX_DISTANCE);
+    } else if (!fly && !walk) {
+      const controls = orbitRef.current;
+      if (controls) {
+        const t = controls.target;
+        const horiz = Math.hypot(t.x, t.z);
+        const maxT = CITY_OUTER_RADIUS * 0.92;
+        if (horiz > maxT) {
+          const s = maxT / horiz;
+          t.x *= s;
+          t.z *= s;
+          controls.update();
+        }
+        if (t.y < 0 || t.y > 250) {
+          t.y = Math.min(250, Math.max(0, t.y));
+          controls.update();
+        }
+      }
     }
   });
 
@@ -105,7 +127,18 @@ export default function CameraControls() {
       ref={orbitRef}
       makeDefault
       enableDamping
-      enablePan={false}
+      // Right-drag pans the camera centre across the city; left-drag orbits,
+      // wheel/middle zooms. screenSpacePanning=false glides the pan along the
+      // ground plane (map-like) instead of tilting up into the sky.
+      enablePan
+      screenSpacePanning={false}
+      panSpeed={0.9}
+      mouseButtons={{
+        LEFT: THREE.MOUSE.ROTATE,
+        MIDDLE: THREE.MOUSE.DOLLY,
+        RIGHT: THREE.MOUSE.PAN,
+      }}
+      touches={{ ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN }}
       dampingFactor={0.08}
       maxPolarAngle={Math.PI * 0.49}
       minDistance={CAMERA_MIN_DISTANCE}

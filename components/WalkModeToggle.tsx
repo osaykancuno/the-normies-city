@@ -11,6 +11,7 @@ import { useCity } from "@/lib/store";
 export default function WalkModeToggle() {
   const viewMode = useCity((s) => s.viewMode);
   const setViewMode = useCity((s) => s.setViewMode);
+  const setStreetEntryOpen = useCity((s) => s.setStreetEntryOpen);
   const [coarse, setCoarse] = useState(false);
 
   useEffect(() => {
@@ -29,8 +30,8 @@ export default function WalkModeToggle() {
   return (
     <button
       type="button"
-      onClick={() => setViewMode(walking ? "orbit" : "walk")}
-      title="Drop to street level and explore on foot — WASD to move, mouse to look, ESC to exit"
+      onClick={() => (walking ? setViewMode("orbit") : setStreetEntryOpen(true))}
+      title="Drop to street level and explore on foot — pick your Normie, then WASD to move, mouse to look, ESC to exit"
       className={
         "flex items-center gap-1 px-2.5 py-1.5 text-[10px] tracking-widest transition cursor-pointer " +
         (walking ? "bg-off text-on hover:bg-off/85" : "bg-on text-off/85 hover:text-off")

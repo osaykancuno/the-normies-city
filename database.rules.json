@@ -1,0 +1,18 @@
+{
+  "//": "Firebase Realtime Database security rules for ghost presence. Paste these into the Realtime Database → Rules tab of the the-normies-tagbattle project. Presence is world-readable (everyone sees every walker) but each session can only write its OWN node, keyed by its anonymous auth uid. Entries are shape-validated and lightweight; clients prune stale ones and onDisconnect removes them automatically.",
+  "rules": {
+    "presence": {
+      ".read": true,
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['x', 'z', 'ts'])",
+        "x": { ".validate": "newData.isNumber()" },
+        "z": { ".validate": "newData.isNumber()" },
+        "heading": { ".validate": "newData.isNumber()" },
+        "normieId": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999" },
+        "ts": { ".validate": "newData.isNumber()" },
+        "$other": { ".validate": false }
+      }
+    }
+  }
+}

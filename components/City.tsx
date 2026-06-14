@@ -10,6 +10,9 @@ import { currentSkyState, type SkyState } from "@/lib/daynight";
 import InstancedNormies from "./InstancedNormies";
 import AwakenedAntennas from "./AwakenedAntennas";
 import Streets from "./Streets";
+import StreetLamps from "./StreetLamps";
+import CityProps from "./CityProps";
+import Ghosts from "./Ghosts";
 import CameraControls from "./CameraControls";
 import ActivityEffects from "./ActivityEffects";
 import LiveDataLoader from "./LiveDataLoader";
@@ -134,6 +137,8 @@ export default function City() {
       />
       <Ground />
       <Streets />
+      {buildings.length > 0 && <StreetLamps />}
+      {buildings.length > 0 && <CityProps />}
       <Horizon skyColor={skyColor} />
       <Stars />
       <Suspense fallback={null}>
@@ -143,6 +148,7 @@ export default function City() {
         <Arena />
         <ActivityEffects />
         <CityLife />
+        <Ghosts />
       </Suspense>
       <CameraControls />
       <LiveDataLoader />

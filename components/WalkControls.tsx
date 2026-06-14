@@ -7,6 +7,7 @@ import * as THREE from "three";
 import type { PointerLockControls as PointerLockControlsImpl } from "three-stdlib";
 import { useCity } from "@/lib/store";
 import { buildCollider, type CityCollider } from "@/lib/collision";
+import { localWalker } from "@/lib/presence";
 
 // First-person street-level explorer. Mounted by CameraControls only when
 // viewMode === "walk". Uses drei PointerLockControls for mouse-look and a
@@ -14,7 +15,7 @@ import { buildCollider, type CityCollider } from "@/lib/collision";
 // city's buildings. Additive: orbit/fly are untouched.
 
 // Tunables — all the "feel" of the mode lives here.
-const EYE_HEIGHT = 7; // camera height above ground (ground sits at y≈0)
+const EYE_HEIGHT = 17; // camera height above ground — standing-person eye level
 const WALK_SPEED = 55; // world units / second
 const SPRINT_MULT = 1.8; // hold Shift to sprint
 const SPAWN = new THREE.Vector3(0, EYE_HEIGHT, 500); // plaza perimeter, looking inward
@@ -66,9 +67,11 @@ export default function WalkControls() {
   }, []);
 
   // Position the camera at street level on enter; auto-request pointer lock.
+  // Mark the shared walker pose active so the presence publisher broadcasts it.
   useEffect(() => {
     camera.position.copy(SPAWN);
     camera.lookAt(0, EYE_HEIGHT, 0);
+    localWalker.active = true;
     const ctrl = lockRef.current;
     const id = setTimeout(() => {
       try {
@@ -78,7 +81,10 @@ export default function WalkControls() {
         // click again; harmless.
       }
     }, 0);
-    return () => clearTimeout(id);
+    return () => {
+      clearTimeout(id);
+      localWalker.active = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -100,6 +106,14 @@ export default function WalkControls() {
 
     // Keep the camera pinned to eye height regardless of look pitch.
     camera.position.y = EYE_HEIGHT;
+
+    // Publish the local pose for ghost presence (read on a throttle by Ghosts).
+    localWalker.x = camera.position.x;
+    localWalker.z = camera.position.z;
+    localWalker.heading = Math.atan2(
+      camera.getWorldDirection(forward.current).x,
+      forward.current.z,
+    );
 
     if (mx === 0 && mz === 0) return;
 

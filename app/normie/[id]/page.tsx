@@ -301,7 +301,7 @@ VIEW NORMIES ON OPENSEA →
                     <li key={tid}>
                       <Link href={`/normie/${tid}`} className="block">
                         <div className="aspect-square w-full bg-off" title={`#${tid}`}>
-                          <NormieImage tokenId={tid} overlaySvg={false} />
+                          <NormieImage tokenId={tid} />
                         </div>
                       </Link>
                     </li>

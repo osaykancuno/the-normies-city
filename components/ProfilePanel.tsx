@@ -105,7 +105,9 @@ function HolderPanel({ address }: { address: string }) {
                   className="block aspect-square w-full bg-off hover:ring-1 hover:ring-off"
                   title={`#${id}`}
                 >
-                  <NormieImage tokenId={id} overlaySvg={false} title={`#${id}`} />
+                  {/* overlaySvg on: the atlas baseline shows instantly, and the
+                      live SVG corrects any blank/stale atlas cell on top. */}
+                  <NormieImage tokenId={id} title={`#${id}`} />
                 </button>
               </li>
             ))}

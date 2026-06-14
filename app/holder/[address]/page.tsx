@@ -151,7 +151,7 @@ export default async function HolderPage({ params }: PageProps) {
                 <li key={id}>
                   <Link href={`/normie/${id}`}>
                     <div className="aspect-square w-full bg-off" title={`#${id}`}>
-                      <NormieImage tokenId={id} overlaySvg={false} />
+                      <NormieImage tokenId={id} />
                     </div>
                   </Link>
                 </li>

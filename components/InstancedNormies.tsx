@@ -424,8 +424,14 @@ void main() {
   if (isFront) {
     vec2 worldFace = vUv * vSize;               // 0..footprint, 0..height
     float cellSize = max(vCellSize, 1.0);
-    float gridCols = max(1.0, floor(vSize.x / cellSize));
-    float gridRows = max(1.0, floor(vSize.y / cellSize));
+    // cellSize is chosen (lib/layout pickCellSize) so the grid tiles exactly in
+    // the binding dimension — e.g. a 6-NFT tower picks cellSize = height/6. In
+    // float32, height/cellSize then comes out as 5.9999996 and floor() drops a
+    // whole row, leaving the top Normie rendered as blank wall. A tiny epsilon
+    // before floor() restores the intended integer grid without affecting the
+    // non-binding dimension (which is a non-integer ratio, far from rounding).
+    float gridCols = max(1.0, floor(vSize.x / cellSize + 0.01));
+    float gridRows = max(1.0, floor(vSize.y / cellSize + 0.01));
 
     // Centre the grid horizontally within the face when it doesn't perfectly tile.
     float marginX = (vSize.x - gridCols * cellSize) * 0.5;

@@ -7,16 +7,9 @@
   --color-ink: #1a1b1d;       /* deepest dim (used only for UI chrome behind content) */
   --color-soot: #2c2d2f;      /* tower side / shadow */
   --color-bone: #c8cac6;      /* slightly dimmed brand-off, for borders */
-  --font-pixel: "Silkscreen", ui-monospace, monospace;
-}
-
-/* Pixel-art display font used everywhere (HTML chrome + drei 3D Text). */
-@font-face {
-  font-family: "Silkscreen";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("https://fonts.gstatic.com/s/silkscreen/v4/m8JXjfVPf62XiF7kO-i9ULRvamODxdI.woff2") format("woff2");
+  /* Silkscreen is loaded via next/font (app/layout.tsx) and exposed as
+   * --font-silkscreen. Legible at small UI sizes, no external dead URL. */
+  --font-pixel: var(--font-silkscreen), ui-monospace, monospace;
 }
 
 html, body {
@@ -30,6 +23,14 @@ html, body {
 /* Lock scroll only inside the city view; profile pages need natural scrolling. */
 body:has(main[data-city]) {
   overflow: hidden;
+}
+
+/* In first-person walk mode, hide the top bar + bottom hint so they don't
+ * clutter the view while navigating. The WalkHud overlay (crosshair, avatar,
+ * exit) takes over. Toggled by components/WalkHud. */
+body.walk-mode [data-city] > header,
+body.walk-mode [data-city] > footer {
+  display: none;
 }
 
 * {

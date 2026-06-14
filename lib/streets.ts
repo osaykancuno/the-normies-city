@@ -1,65 +1,96 @@
 // Street network generator.
 //
 // The holder layout is a golden-angle sunflower spiral (lib/layout.ts) with no
-// inherent roads. To give the city walkable "vie" and orientation, we overlay a
-// deterministic network of radial avenues (spokes from the plaza outward) and
-// concentric ring roads. This is purely a ground-level visual layer — it never
-// moves buildings.
+// inherent roads. To give the city walkable "vie" that read like a real city,
+// we overlay a deterministic network — buildings are NEVER moved:
+//   - radial avenues: spokes from the plaza edge outward
+//   - ring roads: concentric loops
+//   - a spiral boulevard: a smooth Fermat spiral "scenic route" echoing the
+//     sunflower the buildings sit on
+//   - crosswalks at every avenue×ring intersection
+// Each road carries flanking sidewalks. All of it is brand-monochrome and
+// rendered just above the ground.
 
 import { CITY_OUTER_RADIUS } from "./layout";
 
 // Plaza edge — streets start just outside it so the plaza stays open.
-const INNER_RADIUS = 460;
-const OUTER_RADIUS = CITY_OUTER_RADIUS - 40;
+export const INNER_RADIUS = 460;
+export const OUTER_RADIUS = CITY_OUTER_RADIUS - 40;
 
 export const AVENUE_COUNT = 12; // radial spokes
 export const RING_STEP = 300; // distance between concentric ring roads
 
-export interface StreetSegment {
-  /** Centre of the segment, world XZ. */
+export const AVENUE_WIDTH = 30;
+export const RING_WIDTH = 24;
+export const SIDEWALK_WIDTH = 9;
+
+export interface Avenue {
+  /** Angle of the spoke (radians, from +X toward +Z). */
+  angle: number;
+  /** Inner/outer radius the avenue spans. */
+  rInner: number;
+  rOuter: number;
+}
+
+export interface Ring {
+  radius: number;
+}
+
+export interface Crosswalk {
   x: number;
   z: number;
-  /** Length along the road direction, and width across it. */
-  length: number;
-  width: number;
-  /** Rotation around Y (radians) so the segment's long axis follows the road. */
-  rotation: number;
+  /** Orientation of the crossing (radians) — aligned across the avenue. */
+  angle: number;
 }
 
 export interface StreetNetwork {
-  avenues: StreetSegment[];
-  rings: StreetSegment[];
+  avenues: Avenue[];
+  rings: Ring[];
+  crosswalks: Crosswalk[];
+  /** Smooth spiral boulevard sampled as a polyline of XZ points. */
+  spiral: Array<[number, number]>;
 }
 
-const AVENUE_WIDTH = 26;
-const RING_WIDTH = 20;
-
-/** Deterministic — same network every render, no inputs needed. Memoise at the
- *  call site (useMemo) since the result is constant for the app's lifetime. */
+/** Deterministic — same network every render. Memoise at the call site. */
 export function buildStreetNetwork(): StreetNetwork {
-  const avenues: StreetSegment[] = [];
+  const avenues: Avenue[] = [];
   for (let i = 0; i < AVENUE_COUNT; i++) {
-    const theta = (i / AVENUE_COUNT) * Math.PI * 2;
-    const length = OUTER_RADIUS - INNER_RADIUS;
-    const midR = (INNER_RADIUS + OUTER_RADIUS) / 2;
     avenues.push({
-      x: Math.cos(theta) * midR,
-      z: Math.sin(theta) * midR,
-      length,
-      width: AVENUE_WIDTH,
-      // A plane is built along +X; rotate so its long axis points radially.
-      // World angle of the radial direction is theta (measured from +X toward +Z).
-      rotation: -theta,
+      angle: (i / AVENUE_COUNT) * Math.PI * 2,
+      rInner: INNER_RADIUS,
+      rOuter: OUTER_RADIUS,
     });
   }
 
-  // Concentric ring roads. Each ring is approximated by a thin torus-like band;
-  // we render it as a single ring mesh at the call site, so here we only carry
-  // the radius via `length` (= radius) and `width`.
-  const rings: StreetSegment[] = [];
+  const rings: Ring[] = [];
   for (let r = INNER_RADIUS; r <= OUTER_RADIUS; r += RING_STEP) {
-    rings.push({ x: 0, z: 0, length: r, width: RING_WIDTH, rotation: 0 });
+    rings.push({ radius: r });
   }
 
-  return { avenues, rings };
+  // Crosswalks at each avenue × ring intersection.
+  const crosswalks: Crosswalk[] = [];
+  for (const av of avenues) {
+    for (const ring of rings) {
+      crosswalks.push({
+        x: Math.cos(av.angle) * ring.radius,
+        z: Math.sin(av.angle) * ring.radius,
+        angle: av.angle,
+      });
+    }
+  }
+
+  // Spiral boulevard — a smooth Archimedean spiral from the plaza outward.
+  // r grows linearly with the continuous angle so it never self-intersects and
+  // reads as one long scenic road weaving out through the rings.
+  const spiral: Array<[number, number]> = [];
+  const TURNS = 4.5;
+  const maxAngle = TURNS * Math.PI * 2;
+  const b = (OUTER_RADIUS - INNER_RADIUS) / maxAngle;
+  const STEP = 0.08; // radians between samples
+  for (let a = 0; a <= maxAngle; a += STEP) {
+    const r = INNER_RADIUS + b * a;
+    spiral.push([Math.cos(a) * r, Math.sin(a) * r]);
+  }
+
+  return { avenues, rings, crosswalks, spiral };
 }

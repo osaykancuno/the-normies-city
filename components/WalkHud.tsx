@@ -1,14 +1,26 @@
 "use client";
 
+import { useEffect } from "react";
 import { useCity } from "@/lib/store";
+import NormieImage from "./NormieImage";
 
 // Minimal heads-up overlay shown only in first-person walk mode: a centre
-// crosshair, the control hints, and an exit affordance. Pointer-events are off
-// except the EXIT button so mouse-look isn't blocked.
+// crosshair, a read-only avatar badge, control hints, and an exit affordance.
+// The avatar is chosen up-front in StreetEntryModal (you can't focus an input
+// while pointer-locked), so here it's display-only. This component also toggles
+// the `walk-mode` body class so globals.css hides the top bar + footer hint.
 
 export default function WalkHud() {
   const viewMode = useCity((s) => s.viewMode);
   const setViewMode = useCity((s) => s.setViewMode);
+  const avatarNormieId = useCity((s) => s.avatarNormieId);
+
+  // Hide the page chrome while walking (CSS in globals.css keys off this class).
+  useEffect(() => {
+    const walking = viewMode === "walk";
+    document.body.classList.toggle("walk-mode", walking);
+    return () => document.body.classList.remove("walk-mode");
+  }, [viewMode]);
 
   if (viewMode !== "walk") return null;
 
@@ -17,6 +29,17 @@ export default function WalkHud() {
       {/* Centre crosshair. */}
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
         <div className="h-1.5 w-1.5 rounded-full bg-off/80 shadow-[0_0_0_3px_rgba(26,27,29,0.5)]" />
+      </div>
+
+      {/* Read-only avatar badge — the Normie you're wearing. */}
+      <div className="absolute left-3 top-3 flex items-center gap-2 bg-ink/70 p-2">
+        <div className="h-9 w-9 shrink-0 bg-off">
+          <NormieImage tokenId={avatarNormieId} overlaySvg={false} />
+        </div>
+        <div className="text-[10px] tracking-widest text-off/85">
+          <div className="opacity-60">YOU ARE</div>
+          <div className="tabular-nums">#{avatarNormieId}</div>
+        </div>
       </div>
 
       {/* Control hints. */}
