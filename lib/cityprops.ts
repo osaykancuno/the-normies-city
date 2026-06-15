@@ -72,7 +72,7 @@ export function lampPositions(buildings: Building[]): PropXZ[] {
   const reject = buildingRejector(buildings, 6);
   const out: PropXZ[] = [];
   const SIDE = AVENUE_WIDTH / 2 + 6;
-  const STEP = 95;
+  const STEP = 76;
   for (let i = 0; i < AVENUE_COUNT; i++) {
     const theta = (i / AVENUE_COUNT) * Math.PI * 2;
     const dx = Math.cos(theta);
@@ -91,7 +91,7 @@ export function lampPositions(buildings: Building[]): PropXZ[] {
   // Ring lamps — spaced angularly.
   for (let r = INNER_RADIUS; r <= OUTER_RADIUS; r += RING_STEP) {
     const circumference = 2 * Math.PI * r;
-    const n = Math.max(8, Math.round(circumference / 140));
+    const n = Math.max(8, Math.round(circumference / 115));
     for (let k = 0; k < n; k++) {
       const ang = (k / n) * Math.PI * 2 + 0.2;
       const x = Math.cos(ang) * r;
@@ -105,13 +105,13 @@ export function lampPositions(buildings: Building[]): PropXZ[] {
 /** Scatter trees/planters in the gaps between buildings. Rejects any candidate
  *  overlapping a building footprint (cheap grid hash) so greenery only fills
  *  the open ground. */
-export function scatterTrees(buildings: Building[], target = 650): ScatterItem[] {
+export function scatterTrees(buildings: Building[], target = 1100): ScatterItem[] {
   // Grid hash of building centres for fast rejection.
   const CELL = 120;
   const grid = new Map<string, { x: number; z: number; r: number }[]>();
   for (const b of buildings) {
     if (b.kind !== "holder") continue;
-    const r = b.footprint / 2 + 28; // keep the (now larger) canopies clear of walls
+    const r = b.footprint / 2 + 16; // tuck greenery into the now-tighter gaps
     const cx = Math.floor(b.x / CELL);
     const cz = Math.floor(b.z / CELL);
     const key = `${cx}:${cz}`;

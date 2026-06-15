@@ -18,10 +18,14 @@ import { localWalker } from "@/lib/presence";
 const EYE_HEIGHT = 17; // camera height above ground — standing-person eye level
 const WALK_SPEED = 55; // world units / second
 const SPRINT_MULT = 1.8; // hold Shift to sprint
-// Spawn on the EAST plaza edge looking in toward the central monument. East is
-// clear of the N/S memorial walls and the diagonal shops, so you drop into an
-// open civic vista rather than behind a structure.
-const SPAWN = new THREE.Vector3(430, EYE_HEIGHT, 0);
+// Spawn inside the open plaza, just past the central obelisk's base (radius
+// ≈108), facing the BURN MEMORIAL to the south (z=+430). The obelisk stays
+// behind you so the view is unobstructed, and the memorial is framed by the
+// skyline rising beyond the plaza — the civic "entry vista" of the city.
+const SPAWN = new THREE.Vector3(0, EYE_HEIGHT, 140);
+// Look target: the memorial wall, lifted ~70u so the camera tilts gently up to
+// take in the full monument and the towers behind it.
+const SPAWN_LOOK = new THREE.Vector3(0, 72, 430);
 
 const TALK_RADIUS = 70; // how close you must be to an awakened building to talk
 
@@ -83,7 +87,7 @@ export default function WalkControls() {
   // regardless of lock; the mouse looks once locked.
   useEffect(() => {
     camera.position.copy(SPAWN);
-    camera.lookAt(0, EYE_HEIGHT, 0);
+    camera.lookAt(SPAWN_LOOK);
     localWalker.active = true;
 
     const dom = gl.domElement;

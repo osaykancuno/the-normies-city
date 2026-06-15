@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { OrbitControls, FlyControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
@@ -13,6 +13,9 @@ import WalkControls from "./WalkControls";
 // orbits out past the city limit — gives the feeling of "always inside".
 const CAMERA_MIN_DISTANCE = 140;
 const CAMERA_MAX_DISTANCE = CITY_OUTER_RADIUS * 1.05;
+// On phones the viewport is tiny, so let the camera pull much further back to
+// frame the whole city at once.
+const CAMERA_MAX_DISTANCE_MOBILE = CITY_OUTER_RADIUS * 1.9;
 
 export default function CameraControls() {
   const viewMode = useCity((s) => s.viewMode);
@@ -20,6 +23,18 @@ export default function CameraControls() {
   const flyTo = useCity((s) => s.flyTo);
   const orbitRef = useRef<OrbitControlsImpl>(null);
   const { camera } = useThree();
+
+  // Detect a phone-sized / coarse-pointer device to allow a wider zoom-out.
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(pointer: coarse), (max-width: 820px)");
+    setIsMobile(mq.matches);
+    const on = () => setIsMobile(mq.matches);
+    mq.addEventListener?.("change", on);
+    return () => mq.removeEventListener?.("change", on);
+  }, []);
+  const maxDistance = isMobile ? CAMERA_MAX_DISTANCE_MOBILE : CAMERA_MAX_DISTANCE;
 
   const fly = viewMode === "fly";
   const walk = viewMode === "walk";
@@ -142,7 +157,7 @@ export default function CameraControls() {
       dampingFactor={0.08}
       maxPolarAngle={Math.PI * 0.49}
       minDistance={CAMERA_MIN_DISTANCE}
-      maxDistance={CAMERA_MAX_DISTANCE}
+      maxDistance={maxDistance}
     />
   );
 }

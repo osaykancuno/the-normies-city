@@ -17,8 +17,8 @@ import { CITY_OUTER_RADIUS } from "./layout";
 export const INNER_RADIUS = 460;
 export const OUTER_RADIUS = CITY_OUTER_RADIUS - 40;
 
-export const AVENUE_COUNT = 12; // radial spokes
-export const RING_STEP = 300; // distance between concentric ring roads
+export const AVENUE_COUNT = 16; // radial spokes (denser grid, fills the city)
+export const RING_STEP = 220; // distance between concentric ring roads
 
 export const AVENUE_WIDTH = 30;
 export const RING_WIDTH = 24;

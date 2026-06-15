@@ -161,7 +161,7 @@ export default function City() {
 /** Updates the scene fog colour and density to match the current sky so the void
  *  outside the city blends seamlessly into the sky tone instead of dropping to black. */
 function SkyDriver({ color, sky }: { color: THREE.Color; sky: SkyState }) {
-  const { scene } = useThree();
+  const { scene, camera } = useThree();
   useEffect(() => {
     if (!scene.fog) {
       scene.fog = new THREE.Fog(color, CITY_OUTER_RADIUS * 0.7, CITY_OUTER_RADIUS * 1.6);
@@ -172,6 +172,17 @@ function SkyDriver({ color, sky }: { color: THREE.Color; sky: SkyState }) {
       scene.fog.far = CITY_OUTER_RADIUS * (1.3 + sky.brightness * 0.5);
     }
   }, [color, sky, scene]);
+
+  // Push the fog back as the camera pulls away so the whole city stays visible
+  // when zoomed far out (e.g. the wider mobile zoom-out) instead of the far half
+  // dissolving into fog. At normal distances this is a no-op.
+  useFrame(() => {
+    if (!(scene.fog instanceof THREE.Fog)) return;
+    const camDist = camera.position.length();
+    const baseFar = CITY_OUTER_RADIUS * (1.3 + sky.brightness * 0.5);
+    const wantFar = Math.max(baseFar, camDist + CITY_OUTER_RADIUS * 1.05);
+    if (Math.abs(scene.fog.far - wantFar) > 1) scene.fog.far = wantFar;
+  });
   return null;
 }
 

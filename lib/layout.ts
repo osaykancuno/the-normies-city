@@ -59,10 +59,17 @@ const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5)); // ≈ 137.5°
 // (max outer extent ~410 incl. plinth + awning), so the spiral now starts at
 // 520 to leave a clean 60 u walkway between the plaza edge and the first
 // building. Keep this in sync if the plaza grows again.
-const SPIRAL_BASE_RADIUS = 520;
-const SPIRAL_GROWTH = 30;
-/** Outer city limit — used to size the ground, fog and horizon. */
-export const CITY_OUTER_RADIUS = 2200;
+// Buildings are now at most 3 cells wide (≈45 u), so the old spacing (tuned for
+// the wider tier footprints) left big empty gaps. Tightened so neighbours sit a
+// few units apart (≈8 u min, ≈16 u avg) — a dense downtown feel — and the whole
+// city stays compact. With ~1.9k holders the outermost building sits at ≈1370;
+// headroom to ≈3.3k holders before reaching the city limit.
+const SPIRAL_BASE_RADIUS = 500;
+const SPIRAL_GROWTH = 20;
+/** Outer city limit — used to size the ground, fog and horizon. Pulled in to
+ *  hug the now-compact building cluster so the streets/greenery don't trail off
+ *  into an empty plain. */
+export const CITY_OUTER_RADIUS = 1650;
 
 /**
  * Architectural tiers based on portfolio size. Each tier has a distinct silhouette so
@@ -81,35 +88,39 @@ function tierOf(count: number): number {
   if (count <= 50) return 3;
   return 4;
 }
-const TIER_FOOTPRINT = [42, 32, 38, 52, 58];
-const TIER_BASE_HEIGHT = [34, 70, 130, 230, 380];
-/** Per-token height bonus (above tier base) within the tier. */
-const TIER_HEIGHT_GROWTH = [0, 12, 8, 5, 3.4];
+// Building size is driven entirely by the NFT count, with a FIXED-size facade
+// cell so every Normie face is the same size across the city. The grid is at
+// most MAX_COLS wide; the footprint widens with the columns (1→3 cells) and
+// then the height grows with the rows. Net effect: more NFTs ALWAYS means a
+// bigger building — first wider, then taller — and the facade fills the face
+// exactly (no empty black wall). Uniform cells fix the old inversion where a
+// 3-NFT building could end up shorter than a 1-NFT one.
+const FACE_CELL = 15; // world units per Normie face (constant everywhere)
+const MAX_COLS = 3; // facade is at most 3 Normies wide; height carries the rest
+const MAX_HEIGHT = 1600; // safety ceiling for hypothetical mega-wallets
 
-/**
- * Picks the largest possible square cell size in world units such that the building
- * face can host at least `k` cells. Cells are square and tile the face from the
- * bottom-left, leaving any unused area at the top as wall.
- */
-function pickCellSize(footprint: number, height: number, k: number): number {
-  if (k <= 1) {
-    return Math.min(footprint, height);
+interface FaceGrid {
+  cols: number;
+  rows: number;
+  cellSize: number;
+  footprint: number;
+  height: number;
+}
+function faceGrid(count: number): FaceGrid {
+  const cols = Math.max(1, Math.min(MAX_COLS, count));
+  const rows = Math.ceil(count / cols);
+  let cellSize = FACE_CELL;
+  let footprint = cols * cellSize; // width grows with columns (1..3 cells)
+  let height = rows * cellSize; // then height grows with rows
+  // Mega-wallet guard: scale the whole grid down if a tower would pierce the
+  // sky, keeping the facade gap-free.
+  if (height > MAX_HEIGHT) {
+    const s = MAX_HEIGHT / height;
+    cellSize *= s;
+    footprint *= s;
+    height = MAX_HEIGHT;
   }
-  // Size the grid from `k` itself instead of from the building shape: for each
-  // candidate N (columns), compute the required rows M = ceil(k / N) and find the
-  // largest square cell that fits both dimensions. This produces at most N-1 empty
-  // cells (i.e., at most one short row) instead of dozens.
-  // Search column counts up to 16 (was 6). With the per-building cap removed,
-  // whales (largest today = 200 NFTs) need more columns to fit every Normie at
-  // a legible square size; the extra candidates let the packer use the full
-  // facade width instead of forcing tall, thin single columns.
-  let bestCell = 0;
-  for (let N = 1; N <= 16; N++) {
-    const M = Math.ceil(k / N);
-    const cell = Math.min(footprint / N, height / M);
-    if (cell > bestCell) bestCell = cell;
-  }
-  return bestCell;
+  return { cols, rows, cellSize, footprint, height };
 }
 
 export function computeLayout({ holders, burned }: LayoutInput): {
@@ -146,20 +157,13 @@ export function computeLayout({ holders, burned }: LayoutInput): {
     const x = Math.cos(theta) * r;
     const z = Math.sin(theta) * r;
 
+    // Tier still drives the architectural styling (roof shape, window density
+    // in the shader via vTier); size (footprint + height) comes entirely from
+    // the NFT count via the fixed-cell grid so bigger wallets are bigger.
     const tier = tierOf(count);
-    const footprint = TIER_FOOTPRINT[tier];
-    // Inside a tier the building grows linearly with the extra tokens, but the tier
-    // boundary is the dominant silhouette break.
-    const tierMin = [1, 2, 5, 16, 51][tier];
-    const overTierBase = Math.max(0, count - tierMin);
-    const height = TIER_BASE_HEIGHT[tier] + overTierBase * TIER_HEIGHT_GROWTH[tier];
+    const { cellSize, height, footprint } = faceGrid(count);
 
     const glow = rank < 10 ? 0.9 : rank < 50 ? 0.55 : count > 5 ? 0.22 : 0;
-
-    // No cap: every Normie the wallet holds is shown on the facade. The
-    // cell shrinks as needed; even the largest wallet today (200) fits at a
-    // legible size on a tier-4 tower.
-    const cellSize = pickCellSize(footprint, height, count);
     const b: HolderBuilding = {
       kind: "holder",
       address,
