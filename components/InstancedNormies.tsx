@@ -215,6 +215,9 @@ export default function InstancedNormies() {
   });
 
   const handleClick = (event: ThreeEvent<MouseEvent>) => {
+    // In walk mode a click is used to grab pointer lock — don't also select a
+    // building (which would pop a panel over the first-person view).
+    if (useCity.getState().viewMode === "walk") return;
     event.stopPropagation();
     if (event.instanceId == null) return;
 

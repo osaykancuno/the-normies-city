@@ -18,18 +18,23 @@ import { localWalker } from "@/lib/presence";
 const EYE_HEIGHT = 17; // camera height above ground — standing-person eye level
 const WALK_SPEED = 55; // world units / second
 const SPRINT_MULT = 1.8; // hold Shift to sprint
-const SPAWN = new THREE.Vector3(0, EYE_HEIGHT, 500); // plaza perimeter, looking inward
+// Spawn on the EAST plaza edge looking in toward the central monument. East is
+// clear of the N/S memorial walls and the diagonal shops, so you drop into an
+// open civic vista rather than behind a structure.
+const SPAWN = new THREE.Vector3(430, EYE_HEIGHT, 0);
 
 const TALK_RADIUS = 70; // how close you must be to an awakened building to talk
 
 export default function WalkControls() {
-  const { camera } = useThree();
+  const { camera, gl } = useThree();
   const buildings = useCity((s) => s.buildings);
   const awakenedSet = useCity((s) => s.awakenedSet);
   const setViewMode = useCity((s) => s.setViewMode);
   const setNearbyAgentId = useCity((s) => s.setNearbyAgentId);
+  const setWalkLocked = useCity((s) => s.setWalkLocked);
   const chatTokenId = useCity((s) => s.chatTokenId);
   const lockRef = useRef<PointerLockControlsImpl>(null);
+  const wasLocked = useRef(false);
 
   // Rebuild the collider whenever the layout changes (transfer/burn). buildings
   // is a stable reference until a recompute, so this memo is cheap.
@@ -71,50 +76,60 @@ export default function WalkControls() {
     };
   }, []);
 
-  // Position the camera at street level on enter; auto-request pointer lock.
-  // Mark the shared walker pose active so the presence publisher broadcasts it.
+  // Position the camera at street level on enter. Pointer lock is acquired by
+  // CLICKING the scene (a real user gesture — programmatic lock() right after a
+  // React state-driven mount is rejected by Chrome). drei locks on canvas click
+  // by default, and we add an explicit handler too for reliability. WASD works
+  // regardless of lock; the mouse looks once locked.
   useEffect(() => {
     camera.position.copy(SPAWN);
     camera.lookAt(0, EYE_HEIGHT, 0);
     localWalker.active = true;
-    const ctrl = lockRef.current;
-    const id = setTimeout(() => {
+
+    const dom = gl.domElement;
+    const tryLock = () => {
+      if (useCity.getState().chatTokenId != null) return; // don't grab lock under the chat
       try {
-        ctrl?.lock();
+        lockRef.current?.lock();
       } catch {
-        // lock() can throw if the gesture chain was broken — the user can
-        // click again; harmless.
+        /* browser may reject; the next click retries */
       }
-    }, 0);
+    };
+    // Auto-lock on enter (transient user activation from the ENTER ON FOOT
+    // click is still valid for a few seconds) so the mouse looks immediately —
+    // no extra click needed. A canvas click is kept as a silent fallback in
+    // case the browser rejects the programmatic lock.
+    const auto = setTimeout(tryLock, 60);
+    dom.addEventListener("click", tryLock);
+
     return () => {
-      clearTimeout(id);
+      clearTimeout(auto);
+      dom.removeEventListener("click", tryLock);
       localWalker.active = false;
       useCity.getState().setNearbyAgentId(null);
+      useCity.getState().setWalkLocked(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ESC (pointer-lock release) exits back to orbit — UNLESS a chat is open, in
-  // which case the unlock was intentional (free the cursor to type) and we stay
-  // in walk mode.
+  // Track lock state. ESC (real unlock after having been locked) exits to orbit;
+  // the initial unlocked state and chat-driven unlocks do NOT exit.
+  const onLock = () => {
+    wasLocked.current = true;
+    setWalkLocked(true);
+  };
   const onUnlock = () => {
-    if (useCity.getState().chatTokenId != null) return;
+    setWalkLocked(false);
+    if (useCity.getState().chatTokenId != null) return; // unlock to type — stay
+    if (!wasLocked.current) return; // initial unlocked state — ignore
+    wasLocked.current = false;
     setViewMode("orbit");
   };
 
-  // Opening a chat frees the cursor; closing it re-locks so walking resumes.
+  // Opening a chat frees the cursor to type.
   useEffect(() => {
-    const ctrl = lockRef.current;
-    if (!ctrl) return;
     if (chatTokenId != null) {
-      try { ctrl.unlock(); } catch {}
-    } else {
-      // small delay so the click that closed the panel doesn't immediately
-      // re-trigger; lock() needs the document focused.
-      const id = setTimeout(() => {
-        try { ctrl.lock(); } catch {}
-      }, 0);
-      return () => clearTimeout(id);
+      try { lockRef.current?.unlock(); } catch {}
     }
   }, [chatTokenId]);
 
@@ -123,6 +138,7 @@ export default function WalkControls() {
   const proxAccum = useRef(0);
 
   useFrame((_, delta) => {
+   try {
     const k = keys.current;
     const dt = Math.min(delta, 0.05); // clamp huge frames (tab refocus)
 
@@ -190,7 +206,11 @@ export default function WalkControls() {
     const next = collider.resolve(fromX, fromZ, fromX + dx, fromZ + dz);
     camera.position.x = next.x;
     camera.position.z = next.z;
+   } catch {
+    // Never let a stray per-frame error halt the render loop (which would
+    // freeze the whole scene — no movement, no mouse-look).
+   }
   });
 
-  return <PointerLockControls ref={lockRef} onUnlock={onUnlock} />;
+  return <PointerLockControls ref={lockRef} onLock={onLock} onUnlock={onUnlock} />;
 }

@@ -12,6 +12,7 @@ import AwakenedAntennas from "./AwakenedAntennas";
 import Streets from "./Streets";
 import StreetLamps from "./StreetLamps";
 import CityProps from "./CityProps";
+import Monuments from "./Monuments";
 import Ghosts from "./Ghosts";
 import CameraControls from "./CameraControls";
 import ActivityEffects from "./ActivityEffects";
@@ -146,6 +147,7 @@ export default function City() {
         {buildings.length > 0 && <AwakenedAntennas />}
         <Plaza />
         <Arena />
+        <Monuments />
         <ActivityEffects />
         <CityLife />
         <Ghosts />

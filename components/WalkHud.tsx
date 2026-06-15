@@ -18,6 +18,7 @@ export default function WalkHud() {
   const chatTokenId = useCity((s) => s.chatTokenId);
   const openChat = useCity((s) => s.openChat);
   const awakenedAgents = useCity((s) => s.awakenedAgents);
+  const walkLocked = useCity((s) => s.walkLocked);
 
   // Hide the page chrome while walking (CSS in globals.css keys off this class).
   useEffect(() => {
@@ -51,6 +52,14 @@ export default function WalkHud() {
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
         <div className="h-1.5 w-1.5 rounded-full bg-off/80 shadow-[0_0_0_3px_rgba(26,27,29,0.5)]" />
       </div>
+
+      {/* If the browser ever drops the pointer lock mid-walk, a tiny tap hint
+          appears (click anywhere re-engages mouse-look). Silent when locked. */}
+      {!walkLocked && chatTokenId == null && (
+        <div className="absolute left-1/2 top-[62%] -translate-x-1/2 bg-ink/60 px-2 py-1 text-[9px] tracking-widest text-off/70">
+          click to look
+        </div>
+      )}
 
       {/* Read-only avatar badge — the Normie you're wearing. */}
       <div className="absolute left-3 top-3 flex items-center gap-2 bg-ink/70 p-2">

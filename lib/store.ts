@@ -173,6 +173,10 @@ interface CityState {
   /** Nearest awakened building to the walker (walk mode proximity), or null. */
   nearbyAgentId: number | null;
   setNearbyAgentId: (id: number | null) => void;
+  /** True while the pointer is locked in walk mode (mouse-look active). Drives
+   *  the "click to look around" hint when false. */
+  walkLocked: boolean;
+  setWalkLocked: (locked: boolean) => void;
 
   setTraits: (traits: (NormieCompact | null)[]) => void;
   setHolders: (byToken: (string | null)[]) => void;
@@ -280,6 +284,8 @@ export const useCity = create<CityState>((set, get) => ({
   nearbyAgentId: null,
   setNearbyAgentId: (id) =>
     set((s) => (s.nearbyAgentId === id ? {} : { nearbyAgentId: id })),
+  walkLocked: false,
+  setWalkLocked: (locked) => set({ walkLocked: locked }),
 
   setAwakenedSnapshot: (rows) => {
     const set_ = new Set<number>();
