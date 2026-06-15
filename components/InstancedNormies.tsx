@@ -8,7 +8,6 @@ import { ATLAS_CELL_UV } from "@/lib/atlas";
 import type { Building } from "@/lib/layout";
 
 const MAX_BUILDINGS = 10000;
-const MAX_FACADE_CELLS = 150; // generous cap so whales fill their facades
 const tmpObject = new THREE.Object3D();
 
 function makeFallbackTexture(): THREE.Texture {
@@ -130,7 +129,9 @@ export default function InstancedNormies() {
 
       aTokens[i * 3 + 0] = flatTokens.length;
       if (b.kind === "holder") {
-        const visible = b.tokenIds.slice(0, MAX_FACADE_CELLS);
+        // No cap — show every Normie the wallet holds. cellSize (lib/layout)
+        // is sized to fit the full count on the facade.
+        const visible = b.tokenIds;
         aTokens[i * 3 + 1] = visible.length;
         aTokens[i * 3 + 2] = b.cellSize;
         flatTokens.push(...visible);
@@ -424,30 +425,37 @@ void main() {
   if (isFront) {
     vec2 worldFace = vUv * vSize;               // 0..footprint, 0..height
     float cellSize = max(vCellSize, 1.0);
-    // cellSize is chosen (lib/layout pickCellSize) so the grid tiles exactly in
-    // the binding dimension — e.g. a 6-NFT tower picks cellSize = height/6. In
-    // float32, height/cellSize then comes out as 5.9999996 and floor() drops a
-    // whole row, leaving the top Normie rendered as blank wall. A tiny epsilon
-    // before floor() restores the intended integer grid without affecting the
-    // non-binding dimension (which is a non-integer ratio, far from rounding).
+    // Columns fit across the footprint; the +eps guards a float32 floor() that
+    // would otherwise drop a column on exact divisions.
     float gridCols = max(1.0, floor(vSize.x / cellSize + 0.01));
-    float gridRows = max(1.0, floor(vSize.y / cellSize + 0.01));
+    // Rows = exactly enough to hold every token (not floor(height/cell), which
+    // over-counted rows and left a big empty black band at the bottom).
+    float gridRows = max(1.0, ceil(vTokensCount / gridCols));
+    float gridW = gridCols * cellSize;
+    float gridH = gridRows * cellSize;
 
-    // Centre the grid horizontally within the face when it doesn't perfectly tile.
-    float marginX = (vSize.x - gridCols * cellSize) * 0.5;
+    // Centre the grid horizontally; vertically bias it downward only a little so
+    // most of the spare height sits ABOVE the grid — that top wall strip is
+    // where the awakened cornice glows, and it keeps the bottom black margin
+    // small. (free*0.34 below, free*0.66 above.)
+    float freeV = max(0.0, vSize.y - gridH);
+    float botPad = freeV * 0.34;
+    float marginX = (vSize.x - gridW) * 0.5;
     float relX = worldFace.x - marginX;
-    if (relX < 0.0 || relX >= gridCols * cellSize) {
-      // Side margin: wall.
-      color = mix(BRAND_INK, BRAND_ON, 0.55) * vShade;
-    } else {
-      vec2 cellIdx = vec2(floor(relX / cellSize), floor(worldFace.y / cellSize));
-      vec2 cellUv  = vec2(fract(relX / cellSize), fract(worldFace.y / cellSize));
+    float relY = worldFace.y - botPad;
 
-      // Top-down reading order: top row first, leaving any unused cells at the bottom.
+    if (relX < 0.0 || relX >= gridW || relY < 0.0 || relY >= gridH) {
+      // Margin / wall around the centred grid.
+      color = mix(BRAND_INK, BRAND_ON, 0.5) * vShade;
+    } else {
+      vec2 cellIdx = vec2(floor(relX / cellSize), floor(relY / cellSize));
+      vec2 cellUv  = vec2(fract(relX / cellSize), fract(relY / cellSize));
+
+      // Top-down reading order: first token top-left, filling downward.
       float linearIdx = (gridRows - 1.0 - cellIdx.y) * gridCols + cellIdx.x;
 
-      if (cellIdx.y >= gridRows || linearIdx >= vTokensCount) {
-        // Empty upper floors / overflow — wall.
+      if (linearIdx >= vTokensCount) {
+        // Trailing cells of the last (partial) row — wall.
         color = mix(BRAND_INK, BRAND_ON, 0.45) * vShade;
       } else {
         float tokenId = readTokenId(vTokensOffset + linearIdx);
@@ -577,14 +585,15 @@ void main() {
     color += step(0.92, vUv.y) * 0.08;
   }
 
-  // Awakened: emissive top band + a slow pulse — visible even when Agent Mode
-  // is OFF so awakened towers are always discoverable in the skyline.
+  // Awakened: a thin emissive cornice hugging the very top edge — visible even
+  // when Agent Mode is OFF so awakened towers are discoverable in the skyline,
+  // but narrow enough to sit on the wall strip ABOVE the facade grid instead of
+  // washing out the top row of Normies.
   if (vState > 1.5) {
-    float topBand = smoothstep(0.82, 1.0, vUv.y);
+    float topBand = smoothstep(0.93, 1.0, vUv.y);
     float pulse = 0.65 + 0.35 * sin(uTime * 1.6 + vHash * 6.2832);
-    color += vec3(0.32) * topBand * pulse;
-    // Thin emissive edge ring right at the top of the front face.
-    float edgeRing = step(0.97, vUv.y) * step(0.04, vUv.x) * step(vUv.x, 0.96);
+    color += vec3(0.30) * topBand * pulse;
+    float edgeRing = step(0.975, vUv.y) * step(0.04, vUv.x) * step(vUv.x, 0.96);
     color = mix(color, BRAND_OFF, edgeRing * 0.8);
   }
 

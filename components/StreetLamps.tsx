@@ -5,6 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { lampPositions } from "@/lib/cityprops";
 import { currentSkyState } from "@/lib/daynight";
+import { useCity } from "@/lib/store";
 
 // Instanced street lamps lining the avenues and rings. Two InstancedMesh draw
 // calls total (poles + heads) for several hundred lamps. The heads are
@@ -17,7 +18,9 @@ const POLE_H = 52; // tall enough to tower over the ~17u street-level eye
 const tmp = new THREE.Object3D();
 
 export default function StreetLamps() {
-  const lamps = useMemo(() => lampPositions(), []);
+  const buildings = useCity((s) => s.buildings);
+  // Recompute when the layout changes so lamps stay out of buildings.
+  const lamps = useMemo(() => lampPositions(buildings), [buildings]);
   const poleRef = useRef<THREE.InstancedMesh>(null);
   const headRef = useRef<THREE.InstancedMesh>(null);
 

@@ -27,8 +27,49 @@ function mulberry32(seed: number) {
   };
 }
 
-/** Street lamps along both sides of every avenue + spaced around each ring. */
-export function lampPositions(): PropXZ[] {
+/** Builds a fast point-vs-building rejector from the buildings array. Returns a
+ *  predicate that is true when (x,z) lands within `extra` units of any building
+ *  footprint — used to keep props (lamps, trees) out of the houses. */
+function buildingRejector(buildings: Building[], extra: number) {
+  const CELL = 120;
+  const grid = new Map<string, { x: number; z: number; r: number }[]>();
+  for (const b of buildings) {
+    if (b.kind !== "holder") continue;
+    const r = b.footprint / 2 + extra;
+    const cx = Math.floor(b.x / CELL);
+    const cz = Math.floor(b.z / CELL);
+    const key = `${cx}:${cz}`;
+    let arr = grid.get(key);
+    if (!arr) {
+      arr = [];
+      grid.set(key, arr);
+    }
+    arr.push({ x: b.x, z: b.z, r });
+  }
+  return (x: number, z: number): boolean => {
+    const cx = Math.floor(x / CELL);
+    const cz = Math.floor(z / CELL);
+    for (let i = cx - 1; i <= cx + 1; i++) {
+      for (let j = cz - 1; j <= cz + 1; j++) {
+        const arr = grid.get(`${i}:${j}`);
+        if (!arr) continue;
+        for (const b of arr) {
+          const dx = x - b.x;
+          const dz = z - b.z;
+          if (dx * dx + dz * dz < b.r * b.r) return true;
+        }
+      }
+    }
+    return false;
+  };
+}
+
+/** Street lamps along both sides of every avenue + spaced around each ring.
+ *  Candidates that would land inside (or right up against) a building are
+ *  dropped — the spiral building layout isn't aligned to the avenues, so a raw
+ *  geometric placement otherwise pokes lamps through houses. */
+export function lampPositions(buildings: Building[]): PropXZ[] {
+  const reject = buildingRejector(buildings, 6);
   const out: PropXZ[] = [];
   const SIDE = AVENUE_WIDTH / 2 + 6;
   const STEP = 95;
@@ -41,8 +82,10 @@ export function lampPositions(): PropXZ[] {
     for (let r = INNER_RADIUS + 40; r <= OUTER_RADIUS - 40; r += STEP) {
       const bx = dx * r;
       const bz = dz * r;
-      out.push({ x: bx + px * SIDE, z: bz + pz * SIDE });
-      out.push({ x: bx - px * SIDE, z: bz - pz * SIDE });
+      const a = { x: bx + px * SIDE, z: bz + pz * SIDE };
+      const b = { x: bx - px * SIDE, z: bz - pz * SIDE };
+      if (!reject(a.x, a.z)) out.push(a);
+      if (!reject(b.x, b.z)) out.push(b);
     }
   }
   // Ring lamps — spaced angularly.
@@ -50,8 +93,10 @@ export function lampPositions(): PropXZ[] {
     const circumference = 2 * Math.PI * r;
     const n = Math.max(8, Math.round(circumference / 140));
     for (let k = 0; k < n; k++) {
-      const a = (k / n) * Math.PI * 2 + 0.2;
-      out.push({ x: Math.cos(a) * (r + RING_STEP * 0.0), z: Math.sin(a) * r });
+      const ang = (k / n) * Math.PI * 2 + 0.2;
+      const x = Math.cos(ang) * r;
+      const z = Math.sin(ang) * r;
+      if (!reject(x, z)) out.push({ x, z });
     }
   }
   return out;

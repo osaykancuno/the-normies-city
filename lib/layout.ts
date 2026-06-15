@@ -99,8 +99,12 @@ function pickCellSize(footprint: number, height: number, k: number): number {
   // candidate N (columns), compute the required rows M = ceil(k / N) and find the
   // largest square cell that fits both dimensions. This produces at most N-1 empty
   // cells (i.e., at most one short row) instead of dozens.
+  // Search column counts up to 16 (was 6). With the per-building cap removed,
+  // whales (largest today = 200 NFTs) need more columns to fit every Normie at
+  // a legible square size; the extra candidates let the packer use the full
+  // facade width instead of forcing tall, thin single columns.
   let bestCell = 0;
-  for (let N = 1; N <= 6; N++) {
+  for (let N = 1; N <= 16; N++) {
     const M = Math.ceil(k / N);
     const cell = Math.min(footprint / N, height / M);
     if (cell > bestCell) bestCell = cell;
@@ -152,7 +156,10 @@ export function computeLayout({ holders, burned }: LayoutInput): {
 
     const glow = rank < 10 ? 0.9 : rank < 50 ? 0.55 : count > 5 ? 0.22 : 0;
 
-    const cellSize = pickCellSize(footprint, height, Math.min(count, 150));
+    // No cap: every Normie the wallet holds is shown on the facade. The
+    // cell shrinks as needed; even the largest wallet today (200) fits at a
+    // legible size on a tier-4 tower.
+    const cellSize = pickCellSize(footprint, height, count);
     const b: HolderBuilding = {
       kind: "holder",
       address,
