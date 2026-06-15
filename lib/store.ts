@@ -166,6 +166,13 @@ interface CityState {
    *  ENTER STREET VIEW opens it; confirming there drops into walk mode. */
   streetEntryOpen: boolean;
   setStreetEntryOpen: (open: boolean) => void;
+  /** TokenId of the awakened Normie whose chat panel is open, or null. */
+  chatTokenId: number | null;
+  openChat: (tokenId: number) => void;
+  closeChat: () => void;
+  /** Nearest awakened building to the walker (walk mode proximity), or null. */
+  nearbyAgentId: number | null;
+  setNearbyAgentId: (id: number | null) => void;
 
   setTraits: (traits: (NormieCompact | null)[]) => void;
   setHolders: (byToken: (string | null)[]) => void;
@@ -267,6 +274,12 @@ export const useCity = create<CityState>((set, get) => ({
   },
   streetEntryOpen: false,
   setStreetEntryOpen: (open) => set({ streetEntryOpen: open }),
+  chatTokenId: null,
+  openChat: (tokenId) => set({ chatTokenId: tokenId }),
+  closeChat: () => set({ chatTokenId: null }),
+  nearbyAgentId: null,
+  setNearbyAgentId: (id) =>
+    set((s) => (s.nearbyAgentId === id ? {} : { nearbyAgentId: id })),
 
   setAwakenedSnapshot: (rows) => {
     const set_ = new Set<number>();

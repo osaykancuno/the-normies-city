@@ -14,6 +14,10 @@ export default function WalkHud() {
   const viewMode = useCity((s) => s.viewMode);
   const setViewMode = useCity((s) => s.setViewMode);
   const avatarNormieId = useCity((s) => s.avatarNormieId);
+  const nearbyAgentId = useCity((s) => s.nearbyAgentId);
+  const chatTokenId = useCity((s) => s.chatTokenId);
+  const openChat = useCity((s) => s.openChat);
+  const awakenedAgents = useCity((s) => s.awakenedAgents);
 
   // Hide the page chrome while walking (CSS in globals.css keys off this class).
   useEffect(() => {
@@ -22,7 +26,24 @@ export default function WalkHud() {
     return () => document.body.classList.remove("walk-mode");
   }, [viewMode]);
 
+  // Press E to talk to the nearby awakened Normie.
+  useEffect(() => {
+    if (viewMode !== "walk") return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.key === "e" || e.key === "E") && nearbyAgentId != null && chatTokenId == null) {
+        openChat(nearbyAgentId);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [viewMode, nearbyAgentId, chatTokenId, openChat]);
+
   if (viewMode !== "walk") return null;
+
+  const nearbyName =
+    nearbyAgentId != null
+      ? awakenedAgents.get(nearbyAgentId)?.name || `#${nearbyAgentId}`
+      : null;
 
   return (
     <div className="pointer-events-none fixed inset-0 z-20">
@@ -42,10 +63,21 @@ export default function WalkHud() {
         </div>
       </div>
 
+      {/* Proximity prompt — talk to a nearby awakened Normie. */}
+      {nearbyName && chatTokenId == null && (
+        <button
+          type="button"
+          onClick={() => nearbyAgentId != null && openChat(nearbyAgentId)}
+          className="pointer-events-auto absolute left-1/2 top-[58%] -translate-x-1/2 bg-off px-3 py-1.5 text-[11px] tracking-widest text-on hover:bg-off/80"
+        >
+          E · TALK TO {nearbyName.toUpperCase()}
+        </button>
+      )}
+
       {/* Control hints. */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
         <div className="bg-ink/70 px-3 py-1.5 text-[10px] tracking-widest text-off/85">
-          WASD move · SHIFT sprint · MOUSE look · ESC exit
+          WASD move · SHIFT sprint · MOUSE look · E talk · ESC exit
         </div>
       </div>
 

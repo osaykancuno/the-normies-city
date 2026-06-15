@@ -138,6 +138,8 @@ function NormiePanel({ tokenId }: { tokenId: number }) {
   const setSelection = useCity((s) => s.setSelection);
   const traits = useCity((s) => s.traits);
   const isAwakened = useCity((s) => s.awakenedSet.has(tokenId));
+  const openChat = useCity((s) => s.openChat);
+  const awakenedName = useCity((s) => s.awakenedAgents.get(tokenId)?.name);
   const compact = traits?.[tokenId];
 
   // refreshInterval lets every SWR consumer in this panel automatically
@@ -235,7 +237,16 @@ function NormiePanel({ tokenId }: { tokenId: number }) {
       {meta && <div className="mt-3 truncate text-[10px] opacity-60">{meta.name}</div>}
 
       {isAwakened ? (
-        <AwakenedPanel tokenId={tokenId} />
+        <>
+          <button
+            type="button"
+            onClick={() => openChat(tokenId)}
+            className="mt-3 block w-full bg-off px-2 py-1.5 text-center text-[10px] tracking-widest text-on hover:bg-off/80"
+          >
+            ◉ TALK TO {(awakenedName ?? `#${tokenId}`).toUpperCase()} →
+          </button>
+          <AwakenedPanel tokenId={tokenId} />
+        </>
       ) : (
         <a
           href="https://normies.art/lab"

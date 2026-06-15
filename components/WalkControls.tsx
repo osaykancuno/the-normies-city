@@ -20,10 +20,15 @@ const WALK_SPEED = 55; // world units / second
 const SPRINT_MULT = 1.8; // hold Shift to sprint
 const SPAWN = new THREE.Vector3(0, EYE_HEIGHT, 500); // plaza perimeter, looking inward
 
+const TALK_RADIUS = 70; // how close you must be to an awakened building to talk
+
 export default function WalkControls() {
   const { camera } = useThree();
   const buildings = useCity((s) => s.buildings);
+  const awakenedSet = useCity((s) => s.awakenedSet);
   const setViewMode = useCity((s) => s.setViewMode);
+  const setNearbyAgentId = useCity((s) => s.setNearbyAgentId);
+  const chatTokenId = useCity((s) => s.chatTokenId);
   const lockRef = useRef<PointerLockControlsImpl>(null);
 
   // Rebuild the collider whenever the layout changes (transfer/burn). buildings
@@ -84,25 +89,42 @@ export default function WalkControls() {
     return () => {
       clearTimeout(id);
       localWalker.active = false;
+      useCity.getState().setNearbyAgentId(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ESC (pointer-lock release) exits back to orbit.
-  const onUnlock = () => setViewMode("orbit");
+  // ESC (pointer-lock release) exits back to orbit — UNLESS a chat is open, in
+  // which case the unlock was intentional (free the cursor to type) and we stay
+  // in walk mode.
+  const onUnlock = () => {
+    if (useCity.getState().chatTokenId != null) return;
+    setViewMode("orbit");
+  };
+
+  // Opening a chat frees the cursor; closing it re-locks so walking resumes.
+  useEffect(() => {
+    const ctrl = lockRef.current;
+    if (!ctrl) return;
+    if (chatTokenId != null) {
+      try { ctrl.unlock(); } catch {}
+    } else {
+      // small delay so the click that closed the panel doesn't immediately
+      // re-trigger; lock() needs the document focused.
+      const id = setTimeout(() => {
+        try { ctrl.lock(); } catch {}
+      }, 0);
+      return () => clearTimeout(id);
+    }
+  }, [chatTokenId]);
 
   const forward = useRef(new THREE.Vector3());
   const right = useRef(new THREE.Vector3());
+  const proxAccum = useRef(0);
 
   useFrame((_, delta) => {
     const k = keys.current;
     const dt = Math.min(delta, 0.05); // clamp huge frames (tab refocus)
-    let mx = 0;
-    let mz = 0;
-    if (k.w) mz += 1;
-    if (k.s) mz -= 1;
-    if (k.d) mx += 1;
-    if (k.a) mx -= 1;
 
     // Keep the camera pinned to eye height regardless of look pitch.
     camera.position.y = EYE_HEIGHT;
@@ -114,6 +136,41 @@ export default function WalkControls() {
       camera.getWorldDirection(forward.current).x,
       forward.current.z,
     );
+
+    // Proximity to awakened buildings (~6 Hz). Find the nearest awakened holder
+    // within talk range and expose it so the HUD can offer "talk to {name}".
+    proxAccum.current += dt;
+    if (proxAccum.current >= 0.15) {
+      proxAccum.current = 0;
+      let bestId: number | null = null;
+      let bestD = Infinity;
+      for (const b of buildings) {
+        if (b.kind !== "holder") continue;
+        const dx = camera.position.x - b.x;
+        const dz = camera.position.z - b.z;
+        const d2 = dx * dx + dz * dz;
+        const reach = TALK_RADIUS + b.footprint / 2;
+        if (d2 > reach * reach || d2 >= bestD) continue;
+        let awakenedTok = -1;
+        for (const id of b.tokenIds) {
+          if (awakenedSet.has(id)) { awakenedTok = id; break; }
+        }
+        if (awakenedTok < 0) continue;
+        bestD = d2;
+        bestId = awakenedTok;
+      }
+      setNearbyAgentId(bestId);
+    }
+
+    // Freeze movement while a chat is open (cursor is freed for typing).
+    if (chatTokenId != null) return;
+
+    let mx = 0;
+    let mz = 0;
+    if (k.w) mz += 1;
+    if (k.s) mz -= 1;
+    if (k.d) mx += 1;
+    if (k.a) mx -= 1;
 
     if (mx === 0 && mz === 0) return;
 
