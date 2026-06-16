@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useCity } from "@/lib/store";
 import NormieImage from "./NormieImage";
+import { isTouchDevice } from "@/lib/touchinput";
 
 // Minimal heads-up overlay shown only in first-person walk mode: a centre
 // crosshair, a read-only avatar badge, control hints, and an exit affordance.
@@ -19,6 +20,24 @@ export default function WalkHud() {
   const openChat = useCity((s) => s.openChat);
   const awakenedAgents = useCity((s) => s.awakenedAgents);
   const walkLocked = useCity((s) => s.walkLocked);
+  const burned = useCity((s) => s.burned);
+  const awakenedSet = useCity((s) => s.awakenedSet);
+  const buildings = useCity((s) => s.buildings);
+
+  // Live on-chain readout for street view (the header is hidden here). These
+  // numbers update as the live data polls land, so the visitor still sees the
+  // collection breathing — alongside the 3D activity pulses in the world.
+  const stats = useMemo(() => {
+    let live = 0;
+    let holders = 0;
+    for (const b of buildings) {
+      if (b.kind !== "holder") continue;
+      holders++;
+      live += b.tokenIds.length;
+    }
+    return { live, holders };
+  }, [buildings]);
+  const touch = useMemo(() => isTouchDevice(), []);
 
   // Hide the page chrome while walking (CSS in globals.css keys off this class).
   useEffect(() => {
@@ -53,6 +72,12 @@ export default function WalkHud() {
         <div className="h-1.5 w-1.5 rounded-full bg-off/80 shadow-[0_0_0_3px_rgba(26,27,29,0.5)]" />
       </div>
 
+      {/* Live on-chain readout — visible while the page header is hidden. */}
+      <div className="absolute left-1/2 top-2 -translate-x-1/2 bg-ink/70 px-3 py-1 text-[10px] tracking-widest text-off/85 tabular-nums">
+        ⛏ {stats.live.toLocaleString()} LIVE · 🔥 {burned.size.toLocaleString()} · ✦{" "}
+        {awakenedSet.size.toLocaleString()}
+      </div>
+
       {/* If the browser ever drops the pointer lock mid-walk, a tiny tap hint
           appears (click anywhere re-engages mouse-look). Silent when locked. */}
       {!walkLocked && chatTokenId == null && (
@@ -83,22 +108,26 @@ export default function WalkHud() {
         </button>
       )}
 
-      {/* Control hints. */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
-        <div className="bg-ink/70 px-3 py-1.5 text-[10px] tracking-widest text-off/85">
-          WASD move · SHIFT sprint · MOUSE look · E talk · V voice · T walkie · ESC exit
+      {/* Control hints (desktop only — touch gets on-screen buttons). */}
+      {!touch && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+          <div className="bg-ink/70 px-3 py-1.5 text-[10px] tracking-widest text-off/85">
+            WASD move · SHIFT sprint · MOUSE look · E talk · V voice · T walkie · ESC exit
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Exit button — sits just below the minimap (top-right) so they don't
-          overlap. The only interactive element here. */}
-      <button
-        type="button"
-        onClick={() => setViewMode("orbit")}
-        className="pointer-events-auto absolute right-3 top-[182px] bg-off px-3 py-1.5 text-[10px] tracking-widest text-on hover:bg-off/80"
-      >
-        EXIT ✕
-      </button>
+      {/* Exit button (desktop) — sits just below the minimap so they don't
+          overlap. On touch, WalkTouchControls provides its own EXIT. */}
+      {!touch && (
+        <button
+          type="button"
+          onClick={() => setViewMode("orbit")}
+          className="pointer-events-auto absolute right-3 top-[182px] bg-off px-3 py-1.5 text-[10px] tracking-widest text-on hover:bg-off/80"
+        >
+          EXIT ✕
+        </button>
+      )}
     </div>
   );
 }

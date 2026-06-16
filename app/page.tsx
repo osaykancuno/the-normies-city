@@ -8,6 +8,7 @@ import MiniMap from "@/components/MiniMap";
 import StreetEntryModal from "@/components/StreetEntryModal";
 import AgentChat from "@/components/AgentChat";
 import VoiceController from "@/components/VoiceController";
+import WalkTouchControls from "@/components/WalkTouchControls";
 
 export default function Home() {
   return (
@@ -21,6 +22,7 @@ export default function Home() {
       <PlayModal />
       <WalkHud />
       <MiniMap />
+      <WalkTouchControls />
       <VoiceController />
       <StreetEntryModal />
       <AgentChat />

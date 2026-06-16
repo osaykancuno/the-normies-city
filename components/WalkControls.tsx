@@ -8,6 +8,10 @@ import type { PointerLockControls as PointerLockControlsImpl } from "three-stdli
 import { useCity } from "@/lib/store";
 import { buildCollider, type CityCollider } from "@/lib/collision";
 import { localWalker } from "@/lib/presence";
+import { touchInput, isTouchDevice } from "@/lib/touchinput";
+
+const LOOK_SENS = 0.0042; // radians of look per pixel of touch drag
+const PITCH_LIMIT = 1.35; // clamp up/down look
 
 // First-person street-level explorer. Mounted by CameraControls only when
 // viewMode === "walk". Uses drei PointerLockControls for mouse-look and a
@@ -40,6 +44,13 @@ export default function WalkControls() {
   const chatTokenId = useCity((s) => s.chatTokenId);
   const lockRef = useRef<PointerLockControlsImpl>(null);
   const wasLocked = useRef(false);
+
+  // On touch devices there's no pointer lock: we drive a manual yaw/pitch FPS
+  // camera from the on-screen look pad + joystick instead.
+  const isTouch = useMemo(() => isTouchDevice(), []);
+  const yaw = useRef(0);
+  const pitch = useRef(0);
+  const euler = useRef(new THREE.Euler(0, 0, 0, "YXZ"));
 
   // Rebuild the collider whenever the layout changes (transfer/burn). buildings
   // is a stable reference until a recompute, so this memo is cheap.
@@ -90,6 +101,24 @@ export default function WalkControls() {
     camera.position.copy(SPAWN);
     camera.lookAt(SPAWN_LOOK);
     localWalker.active = true;
+
+    // Touch: no pointer lock — seed yaw/pitch from the spawn look and mark the
+    // view "locked" so the HUD/voice/proximity behave as in the desktop path.
+    if (isTouch) {
+      const e = euler.current.setFromQuaternion(camera.quaternion, "YXZ");
+      yaw.current = e.y;
+      pitch.current = e.x;
+      touchInput.mx = 0;
+      touchInput.mz = 0;
+      touchInput.lookDX = 0;
+      touchInput.lookDY = 0;
+      setWalkLocked(true);
+      return () => {
+        localWalker.active = false;
+        useCity.getState().setNearbyAgentId(null);
+        useCity.getState().setWalkLocked(false);
+      };
+    }
 
     const dom = gl.domElement;
     const tryLock = () => {
@@ -147,6 +176,21 @@ export default function WalkControls() {
     const k = keys.current;
     const dt = Math.min(delta, 0.05); // clamp huge frames (tab refocus)
 
+    // Touch look: apply accumulated drag to yaw/pitch and orient the camera
+    // (the desktop path lets PointerLockControls own the orientation instead).
+    if (isTouch) {
+      if (touchInput.lookDX !== 0 || touchInput.lookDY !== 0) {
+        yaw.current -= touchInput.lookDX * LOOK_SENS;
+        pitch.current -= touchInput.lookDY * LOOK_SENS;
+        pitch.current = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, pitch.current));
+        touchInput.lookDX = 0;
+        touchInput.lookDY = 0;
+      }
+      camera.quaternion.setFromEuler(
+        euler.current.set(pitch.current, yaw.current, 0, "YXZ"),
+      );
+    }
+
     // Keep the camera pinned to eye height regardless of look pitch.
     camera.position.y = EYE_HEIGHT;
 
@@ -188,12 +232,18 @@ export default function WalkControls() {
 
     let mx = 0;
     let mz = 0;
-    if (k.w) mz += 1;
-    if (k.s) mz -= 1;
-    if (k.d) mx += 1;
-    if (k.a) mx -= 1;
+    if (isTouch) {
+      // Left joystick vector (mz>0 forward, mx>0 strafe right).
+      mx = touchInput.mx;
+      mz = touchInput.mz;
+    } else {
+      if (k.w) mz += 1;
+      if (k.s) mz -= 1;
+      if (k.d) mx += 1;
+      if (k.a) mx -= 1;
+    }
 
-    if (mx === 0 && mz === 0) return;
+    if (Math.abs(mx) < 0.001 && Math.abs(mz) < 0.001) return;
 
     // Camera-forward projected onto the ground plane.
     camera.getWorldDirection(forward.current);
@@ -202,7 +252,7 @@ export default function WalkControls() {
     // Right = forward × up.
     right.current.crossVectors(forward.current, camera.up).normalize();
 
-    const speed = WALK_SPEED * (k.shift ? SPRINT_MULT : 1) * dt;
+    const speed = WALK_SPEED * (!isTouch && k.shift ? SPRINT_MULT : 1) * dt;
     const dx = (forward.current.x * mz + right.current.x * mx) * speed;
     const dz = (forward.current.z * mz + right.current.z * mx) * speed;
 
@@ -217,5 +267,7 @@ export default function WalkControls() {
    }
   });
 
+  // Touch has no pointer lock — the on-screen WalkTouchControls drive look/move.
+  if (isTouch) return null;
   return <PointerLockControls ref={lockRef} onLock={onLock} onUnlock={onUnlock} />;
 }

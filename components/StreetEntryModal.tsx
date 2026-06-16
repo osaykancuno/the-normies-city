@@ -113,7 +113,12 @@ export default function StreetEntryModal() {
             ENTER ON FOOT →
           </button>
           <div className="mt-2 text-center text-[9px] tracking-wider opacity-50">
-            WASD move · SHIFT sprint · MOUSE look · ESC exit
+            <span className="hidden sm:inline">
+              WASD move · SHIFT sprint · MOUSE look · ESC exit
+            </span>
+            <span className="sm:hidden">
+              joystick to move · drag to look · on-screen buttons
+            </span>
           </div>
         </div>
       </div>
