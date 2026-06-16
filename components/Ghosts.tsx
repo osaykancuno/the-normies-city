@@ -11,6 +11,7 @@ import {
   type RemotePresence,
 } from "@/lib/presence";
 import { presenceEnabled } from "@/lib/firebase";
+import { talkingRegistry } from "@/lib/voice";
 
 // Ghost presence: render OTHER visitors walking the city. Each remote walker is
 // a billboarded plane textured with their chosen Normie face (sampled from the
@@ -67,6 +68,7 @@ export default function Ghosts() {
 
 function Ghost({ presence }: { presence: RemotePresence }) {
   const groupRef = useRef<THREE.Group>(null);
+  const talkRef = useRef<THREE.Group>(null);
   const { camera } = useThree();
 
   // Atlas texture (shared with the building facades).
@@ -104,12 +106,22 @@ function Ghost({ presence }: { presence: RemotePresence }) {
   const target = useRef(new THREE.Vector3(presence.x, EYE_HEIGHT, presence.z));
   target.current.set(presence.x, EYE_HEIGHT, presence.z);
 
-  useFrame(() => {
+  useFrame((s) => {
     const g = groupRef.current;
     if (!g) return;
     g.position.lerp(target.current, 0.18);
     // Billboard: face the camera on the horizontal plane.
     g.lookAt(camera.position.x, g.position.y, camera.position.z);
+    // "Speaking" indicator: show + pulse while this peer's voice is active.
+    const t = talkRef.current;
+    if (t) {
+      const speaking = talkingRegistry.ids.has(presence.id);
+      t.visible = speaking;
+      if (speaking) {
+        const p = 1 + Math.sin(s.clock.elapsedTime * 9) * 0.18;
+        t.scale.setScalar(p);
+      }
+    }
   });
 
   return (
@@ -128,6 +140,22 @@ function Ghost({ presence }: { presence: RemotePresence }) {
       >
         {`#${presence.normieId}`}
       </Text>
+
+      {/* "Speaking" indicator — hidden until this peer's voice is active. */}
+      <group ref={talkRef} position={[0, AVATAR_SIZE * 1.0, 0]} visible={false}>
+        <mesh>
+          <circleGeometry args={[1.5, 24]} />
+          <meshBasicMaterial color="#e3e5e4" />
+        </mesh>
+        <mesh>
+          <ringGeometry args={[2.4, 3.0, 28]} />
+          <meshBasicMaterial color="#e3e5e4" transparent opacity={0.55} />
+        </mesh>
+        <mesh>
+          <ringGeometry args={[3.8, 4.2, 28]} />
+          <meshBasicMaterial color="#e3e5e4" transparent opacity={0.3} />
+        </mesh>
+      </group>
     </group>
   );
 }

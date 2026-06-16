@@ -25,6 +25,7 @@ export default function VoiceController() {
   const [state, setState] = useState<VoiceState>({
     enabled: false,
     transmitting: false,
+    outputMuted: false,
     connected: [],
     talking: [],
   });
@@ -34,20 +35,27 @@ export default function VoiceController() {
     const vm = getVoiceManager();
     const off = vm.onState(setState);
 
-    // Proximity: tell the manager which presence uids are within talk range.
+    // Proximity + spatial: tell the manager who's in range, and place every
+    // peer + the listener in 3D so voices pan by direction and fade by distance.
     const prox = setInterval(() => {
       const me = peerRegistry.selfUid;
       const near: string[] = [];
+      const positions = new Map<string, { x: number; z: number }>();
       for (const p of peerRegistry.peers) {
         if (p.id === me) continue;
+        positions.set(p.id, { x: p.x, z: p.z });
         const dx = p.x - localWalker.x;
         const dz = p.z - localWalker.z;
         if (dx * dx + dz * dz <= VOICE_RADIUS * VOICE_RADIUS) near.push(p.id);
       }
       vm.setNearby(near);
+      vm.updateSpatial(
+        { x: localWalker.x, z: localWalker.z, heading: localWalker.heading },
+        positions,
+      );
     }, PROX_MS);
 
-    // V toggles voice on/off; T (hold) is push-to-talk.
+    // V toggles voice; T (hold) is push-to-talk; M mutes everyone else.
     const down = (e: KeyboardEvent) => {
       if (e.repeat) return;
       if (useCity.getState().chatTokenId != null) return; // typing in agent chat
@@ -58,6 +66,8 @@ export default function VoiceController() {
         else void vm.enable();
       } else if (k === "t") {
         vm.setTransmitting(true);
+      } else if (k === "m" && state.enabled) {
+        vm.setOutputMuted(!state.outputMuted);
       }
     };
     const up = (e: KeyboardEvent) => {
@@ -72,9 +82,9 @@ export default function VoiceController() {
       window.removeEventListener("keyup", up);
       off();
     };
-    // `state.enabled` is read inside the V handler; re-bind when it flips so the
-    // toggle reflects the latest value.
-  }, [active, state.enabled]);
+    // `state.enabled`/`state.outputMuted` are read inside the handlers; re-bind
+    // when they flip so the toggles reflect the latest values.
+  }, [active, state.enabled, state.outputMuted]);
 
   // Leaving walk mode fully tears down the mic + connections.
   useEffect(() => {
@@ -104,13 +114,18 @@ export default function VoiceController() {
               {inRange > 0 ? ` · ${inRange} IN RANGE` : " · nobody nearby"}
             </div>
           )}
-          {someoneTalking && (
+          {someoneTalking && !state.outputMuted && (
             <div className="bg-ink/70 px-2 py-1 text-[9px] tracking-widest text-off/70">
               ◗ {state.talking.length} speaking
             </div>
           )}
+          {state.outputMuted && (
+            <div className="bg-ink/70 px-2 py-1 text-[9px] tracking-widest text-off/60">
+              🔇 OTHERS MUTED
+            </div>
+          )}
           <div className="bg-ink/40 px-2 py-0.5 text-[8px] tracking-widest text-off/40">
-            V to leave voice
+            M mute others · V leave voice
           </div>
         </div>
       )}

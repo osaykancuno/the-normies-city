@@ -28,16 +28,46 @@ import {
 } from "firebase/database";
 import { ensureAnonAuth, getPresenceDb, presenceEnabled } from "./firebase";
 
+// STUN finds your public address; TURN relays media when a direct path is
+// impossible (symmetric NATs, strict corporate/mobile networks). Without a TURN
+// server, two users on different restrictive networks often can't connect at
+// all — so we include the well-known free OpenRelay TURN servers as a fallback.
+// Swap these for a dedicated TURN service if reliability matters at scale.
 const ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
+  {
+    urls: "turn:openrelay.metered.ca:80",
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
+  {
+    urls: "turn:openrelay.metered.ca:443",
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
+  {
+    urls: "turn:openrelay.metered.ca:443?transport=tcp",
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
 ];
 
 const TALK_THRESHOLD = 0.012; // RMS above which a remote peer counts as "talking"
 
+// Spatial audio falloff (world units).
+const REF_DISTANCE = 12; // full volume within this
+const MAX_DISTANCE = 110; // inaudible past this
+
+/** Non-reactive set of peer uids currently speaking, for the 3D layer (Ghosts)
+ *  to show a "speaking" indicator above the right avatar without prop drilling. */
+export const talkingRegistry = { ids: new Set<string>() };
+
 export interface VoiceState {
   enabled: boolean;
   transmitting: boolean;
+  /** True when the visitor has muted everyone else (output mute). */
+  outputMuted: boolean;
   /** Peer uids with a live audio connection. */
   connected: string[];
   /** Peer uids currently speaking (remote audio above threshold). */
@@ -49,6 +79,8 @@ interface Peer {
   audio: HTMLAudioElement;
   analyser?: AnalyserNode;
   data?: Uint8Array<ArrayBuffer>;
+  src?: MediaStreamAudioSourceNode;
+  panner?: PannerNode;
   polite: boolean; // true when we are NOT the offer initiator
 }
 
@@ -63,8 +95,10 @@ class VoiceManager {
   private listeners = new Set<Listener>();
   private inboxUnsub: (() => void) | null = null;
   private audioCtx: AudioContext | null = null;
+  private masterGain: GainNode | null = null;
   private enabled = false;
   private transmitting = false;
+  private outputMuted = false;
   private talking: string[] = [];
   private meterTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -78,9 +112,29 @@ class VoiceManager {
     return {
       enabled: this.enabled,
       transmitting: this.transmitting,
+      outputMuted: this.outputMuted,
       connected: [...this.peers.keys()],
       talking: this.talking,
     };
+  }
+
+  /** Lazily build the WebAudio graph: panners → masterGain → speakers. */
+  private ensureAudio(): boolean {
+    if (this.audioCtx && this.masterGain) return true;
+    try {
+      const Ctx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      this.audioCtx = new Ctx();
+      this.masterGain = this.audioCtx.createGain();
+      this.masterGain.gain.value = this.outputMuted ? 0 : 1;
+      this.masterGain.connect(this.audioCtx.destination);
+      return true;
+    } catch {
+      this.audioCtx = null;
+      this.masterGain = null;
+      return false;
+    }
   }
 
   private emit() {
@@ -118,6 +172,11 @@ class VoiceManager {
         if (msg) this.onSignal(msg).catch(() => {});
       });
 
+      // Build + resume the audio graph now (V is a user gesture, so autoplay
+      // is allowed). A suspended context would otherwise produce silence.
+      this.ensureAudio();
+      await this.audioCtx?.resume().catch(() => {});
+
       this.enabled = true;
       this.startMeter();
       this.emit();
@@ -142,6 +201,7 @@ class VoiceManager {
     this.enabled = false;
     this.transmitting = false;
     this.talking = [];
+    talkingRegistry.ids = new Set();
     if (this.meterTimer) {
       clearInterval(this.meterTimer);
       this.meterTimer = null;
@@ -158,6 +218,14 @@ class VoiceManager {
     if (this.db && this.uid) {
       remove(ref(this.db, `voice/${this.uid}`)).catch(() => {});
     }
+    if (this.masterGain) {
+      try {
+        this.masterGain.disconnect();
+      } catch {
+        /* ignore */
+      }
+      this.masterGain = null;
+    }
     if (this.audioCtx) {
       this.audioCtx.close().catch(() => {});
       this.audioCtx = null;
@@ -171,6 +239,66 @@ class VoiceManager {
     this.transmitting = on;
     for (const t of this.stream.getAudioTracks()) t.enabled = on;
     this.emit();
+  }
+
+  /** Manual mute of everyone else (you stay connected, just don't hear them). */
+  setOutputMuted(on: boolean) {
+    this.outputMuted = on;
+    if (this.masterGain && this.audioCtx) {
+      this.masterGain.gain.setTargetAtTime(on ? 0 : 1, this.audioCtx.currentTime, 0.02);
+    }
+    // Fallback for any peer whose spatial graph didn't build (plain <audio>).
+    for (const [, p] of this.peers) {
+      if (!p.panner) p.audio.muted = on;
+    }
+    this.emit();
+  }
+
+  /**
+   * Position the listener (you) and each connected peer in 3D so voices pan by
+   * direction and fade with distance. Called on a throttle by VoiceController.
+   * `heading` is the camera yaw (radians) as written by WalkControls.
+   */
+  updateSpatial(
+    self: { x: number; z: number; heading: number },
+    positions: Map<string, { x: number; z: number }>,
+  ) {
+    const ctx = this.audioCtx;
+    if (!ctx) return;
+    const fx = Math.sin(self.heading);
+    const fz = Math.cos(self.heading);
+    const L = ctx.listener as AudioListener & {
+      positionX?: AudioParam;
+      forwardX?: AudioParam;
+      upX?: AudioParam;
+    };
+    if (L.positionX) {
+      L.positionX.value = self.x;
+      L.positionY!.value = 0;
+      L.positionZ!.value = self.z;
+      L.forwardX!.value = fx;
+      L.forwardY!.value = 0;
+      L.forwardZ!.value = fz;
+      L.upX!.value = 0;
+      L.upY!.value = 1;
+      L.upZ!.value = 0;
+    } else {
+      L.setPosition?.(self.x, 0, self.z);
+      L.setOrientation?.(fx, 0, fz, 0, 1, 0);
+    }
+    for (const [id, p] of this.peers) {
+      if (!p.panner) continue;
+      const pos = positions.get(id);
+      if (!pos) continue;
+      const pan = p.panner as PannerNode & { positionX?: AudioParam };
+      if (pan.positionX) {
+        pan.positionX.value = pos.x;
+        pan.positionY!.value = 0;
+        pan.positionZ!.value = pos.z;
+      } else {
+        pan.setPosition?.(pos.x, 0, pos.z);
+      }
+    }
   }
 
   /** Update the set of in-range peer uids; opens/closes connections to match. */
@@ -225,8 +353,11 @@ class VoiceManager {
       const [remote] = e.streams;
       if (remote) {
         audio.srcObject = remote;
+        // Some browsers won't pull a remote WebRTC stream into WebAudio unless
+        // it's also bound to a media element — keep it, but mute it when the
+        // spatial graph drives the sound so we don't double-play.
         audio.play().catch(() => {});
-        this.attachMeter(peer, remote);
+        this.attachAudio(peer, remote);
       }
     };
     pc.onconnectionstatechange = () => {
@@ -312,6 +443,13 @@ class VoiceManager {
       /* ignore */
     }
     try {
+      p.src?.disconnect();
+      p.panner?.disconnect();
+      p.analyser?.disconnect();
+    } catch {
+      /* ignore */
+    }
+    try {
       p.audio.srcObject = null;
       p.audio.remove();
     } catch {
@@ -319,24 +457,38 @@ class VoiceManager {
     }
   }
 
-  // --- Remote talking meter ------------------------------------------------
+  // --- Remote audio graph: spatial panner + talking meter ------------------
 
-  private attachMeter(peer: Peer, stream: MediaStream) {
+  private attachAudio(peer: Peer, stream: MediaStream) {
+    if (!this.ensureAudio() || !this.audioCtx || !this.masterGain) return;
     try {
-      if (!this.audioCtx) {
-        const Ctx =
-          window.AudioContext ||
-          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        this.audioCtx = new Ctx();
-      }
-      const src = this.audioCtx.createMediaStreamSource(stream);
-      const analyser = this.audioCtx.createAnalyser();
+      const ctx = this.audioCtx;
+      const src = ctx.createMediaStreamSource(stream);
+
+      // Talking meter (a side branch, not routed to the speakers).
+      const analyser = ctx.createAnalyser();
       analyser.fftSize = 256;
       src.connect(analyser);
       peer.analyser = analyser;
       peer.data = new Uint8Array(new ArrayBuffer(analyser.fftSize));
+
+      // Spatial panner: pans by direction, fades with distance.
+      const panner = ctx.createPanner();
+      panner.panningModel = "HRTF";
+      panner.distanceModel = "inverse";
+      panner.refDistance = REF_DISTANCE;
+      panner.maxDistance = MAX_DISTANCE;
+      panner.rolloffFactor = 1.3;
+      src.connect(panner);
+      panner.connect(this.masterGain);
+      peer.src = src;
+      peer.panner = panner;
+
+      // Spatial graph owns the sound now — mute the element to avoid doubling.
+      peer.audio.muted = true;
     } catch {
-      /* meter is optional */
+      // Spatial graph failed — fall back to plain stereo via the element.
+      peer.audio.muted = this.outputMuted;
     }
   }
 
@@ -361,6 +513,7 @@ class VoiceManager {
         talking.some((t) => !this.talking.includes(t));
       if (changed) {
         this.talking = talking;
+        talkingRegistry.ids = new Set(talking);
         this.emit();
       }
     }, 200);
