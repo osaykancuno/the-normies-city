@@ -86,7 +86,7 @@ export default function WalkHud() {
       {/* Control hints. */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
         <div className="bg-ink/70 px-3 py-1.5 text-[10px] tracking-widest text-off/85">
-          WASD move · SHIFT sprint · MOUSE look · E talk · ESC exit
+          WASD move · SHIFT sprint · MOUSE look · E talk · V voice · T walkie · ESC exit
         </div>
       </div>
 

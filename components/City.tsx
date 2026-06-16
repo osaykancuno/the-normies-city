@@ -24,10 +24,10 @@ import CityLife from "./CityLife";
 const BRAND_INK = "#1a1b1d";
 const BRAND_OFF = "#e3e5e4";
 const BRAND_ON = "#48494b";
-// City floor = asphalt, a touch above the ink void so it reads as paved ground
-// rather than emptiness; the avenue roads (#26272b) and sidewalk aprons (#3a3b40)
-// layer on top of this.
-const ASPHALT = "#1e1f23";
+// City floor base — kept dark so the carriageways (#2a2b30, in Streets.tsx) and
+// sidewalk aprons (#3a3b40) read clearly on top of it. Leftover ground (open
+// areas with no road or pavement) reads as undeveloped dark earth.
+const ASPHALT = "#17181b";
 
 export default function City() {
   const setTraits = useCity((s) => s.setTraits);

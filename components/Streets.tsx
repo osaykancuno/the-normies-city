@@ -1,191 +1,98 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import * as THREE from "three";
-import {
-  buildStreetNetwork,
-  AVENUE_WIDTH,
-  RING_WIDTH,
-  SIDEWALK_WIDTH,
-} from "@/lib/streets";
+import { useCity } from "@/lib/store";
+import { buildRoadNetwork, ROAD_CARRIAGEWAY_WIDTH } from "@/lib/streets";
 
-// Ground-level street network for the "real city" look — radial avenues, ring
-// roads, a spiral boulevard, flanking sidewalks and crosswalks at every
-// intersection. Purely cosmetic + orientation: buildings are never moved.
-// Brand-monochrome, layered just above the ground plane.
+// Organic street network for the "real city" look. The carriageways are derived
+// from the actual building layout (Gabriel graph — see lib/streets.ts), so every
+// road threads through the open gap BETWEEN two adjacent buildings and never
+// cuts through one. Flanked by the per-building sidewalk aprons (Sidewalks.tsx),
+// this reads as proper streets-with-pavements instead of a geometric grid laid
+// over the houses. One merged mesh = one draw call.
 
-const ASPHALT = "#26272b"; // road surface (slightly above ink)
-const SIDEWALK = "#3a3b40"; // raised pavement
-const PAINT = "#e3e5e4"; // lane paint / crosswalks (brand-off)
-
-const Y_SPIRAL = 0.45;
+const ROAD = "#2a2b30"; // carriageway — lighter than the ground, darker than kerbs
+const PAINT = "#cfd2d0"; // faint centre line
 const Y_ROAD = 0.5;
-const Y_SIDEWALK = 0.8;
-const Y_PAINT = 0.72;
-
-const tmp = new THREE.Object3D();
+const Y_PAINT = 0.62;
 
 export default function Streets() {
-  const net = useMemo(() => buildStreetNetwork(), []);
-  const crosswalkRef = useRef<THREE.InstancedMesh>(null);
+  const buildings = useCity((s) => s.buildings);
 
-  // Materials (shared).
+  const { road, paint } = useMemo(() => {
+    const segs = buildRoadNetwork(buildings);
+    const half = ROAD_CARRIAGEWAY_WIDTH / 2;
+
+    // Carriageway quads.
+    const rp: number[] = [];
+    const ri: number[] = [];
+    let v = 0;
+    // Centre-line quads (thin), only on segments long enough to read.
+    const pp: number[] = [];
+    const pi: number[] = [];
+    let pv = 0;
+    const LINE = 0.7;
+
+    for (const s of segs) {
+      const dx = s.bx - s.ax;
+      const dz = s.bz - s.az;
+      const len = Math.hypot(dx, dz) || 1;
+      const nx = (-dz / len) * half;
+      const nz = (dx / len) * half;
+      rp.push(
+        s.ax + nx, Y_ROAD, s.az + nz,
+        s.ax - nx, Y_ROAD, s.az - nz,
+        s.bx + nx, Y_ROAD, s.bz + nz,
+        s.bx - nx, Y_ROAD, s.bz - nz,
+      );
+      ri.push(v, v + 1, v + 2, v + 1, v + 3, v + 2);
+      v += 4;
+
+      if (len > 16) {
+        const lx = (-dz / len) * LINE;
+        const lz = (dx / len) * LINE;
+        pp.push(
+          s.ax + lx, Y_PAINT, s.az + lz,
+          s.ax - lx, Y_PAINT, s.az - lz,
+          s.bx + lx, Y_PAINT, s.bz + lz,
+          s.bx - lx, Y_PAINT, s.bz - lz,
+        );
+        pi.push(pv, pv + 1, pv + 2, pv + 1, pv + 3, pv + 2);
+        pv += 4;
+      }
+    }
+
+    const road = new THREE.BufferGeometry();
+    road.setAttribute("position", new THREE.Float32BufferAttribute(rp, 3));
+    road.setIndex(ri);
+    road.computeVertexNormals();
+
+    const paint = new THREE.BufferGeometry();
+    paint.setAttribute("position", new THREE.Float32BufferAttribute(pp, 3));
+    paint.setIndex(pi);
+    paint.computeVertexNormals();
+
+    return { road, paint };
+  }, [buildings]);
+
   const mats = useMemo(
     () => ({
-      asphalt: new THREE.MeshStandardMaterial({ color: ASPHALT, roughness: 1 }),
-      sidewalk: new THREE.MeshStandardMaterial({ color: SIDEWALK, roughness: 1 }),
-      paint: new THREE.MeshBasicMaterial({ color: PAINT, transparent: true, opacity: 0.45 }),
+      road: new THREE.MeshStandardMaterial({ color: ROAD, roughness: 1 }),
+      paint: new THREE.MeshBasicMaterial({
+        color: PAINT,
+        transparent: true,
+        opacity: 0.18,
+      }),
     }),
     [],
   );
 
-  // Spiral boulevard ribbon, built once from the polyline.
-  const spiralGeom = useMemo(() => buildRibbon(net.spiral, 22, Y_SPIRAL), [net.spiral]);
-
-  // Crosswalk stripes — one InstancedMesh of thin boxes across each
-  // avenue×ring intersection.
-  const stripeCount = net.crosswalks.length * 4;
-  useEffect(() => {
-    const mesh = crosswalkRef.current;
-    if (!mesh) return;
-    let i = 0;
-    const spacing = 5;
-    for (const cw of net.crosswalks) {
-      const dirX = Math.cos(cw.angle);
-      const dirZ = Math.sin(cw.angle);
-      for (const k of [-1.5, -0.5, 0.5, 1.5]) {
-        tmp.position.set(
-          cw.x + dirX * k * spacing,
-          Y_PAINT,
-          cw.z + dirZ * k * spacing,
-        );
-        tmp.rotation.set(0, -cw.angle, 0);
-        // Box long axis (local X) spans the road width across travel; thin in
-        // the travel direction.
-        tmp.scale.set(AVENUE_WIDTH, 0.5, 2.2);
-        tmp.updateMatrix();
-        mesh.setMatrixAt(i++, tmp.matrix);
-      }
-    }
-    mesh.count = i;
-    mesh.instanceMatrix.needsUpdate = true;
-  }, [net.crosswalks]);
-
+  if (buildings.length === 0) return null;
   return (
     <group>
-      {/* Spiral boulevard (drawn first / lowest). */}
-      <mesh geometry={spiralGeom} material={mats.asphalt} />
-
-      {/* Radial avenues — road + two sidewalks. */}
-      {net.avenues.map((av, i) => {
-        const midR = (av.rInner + av.rOuter) / 2;
-        const length = av.rOuter - av.rInner;
-        const cx = Math.cos(av.angle) * midR;
-        const cz = Math.sin(av.angle) * midR;
-        const perpX = -Math.sin(av.angle);
-        const perpZ = Math.cos(av.angle);
-        const swOff = AVENUE_WIDTH / 2 + SIDEWALK_WIDTH / 2;
-        return (
-          <group key={`av-${i}`}>
-            <mesh
-              rotation={[-Math.PI / 2, 0, -av.angle]}
-              position={[cx, Y_ROAD, cz]}
-              material={mats.asphalt}
-            >
-              <planeGeometry args={[length, AVENUE_WIDTH]} />
-            </mesh>
-            {/* dashed centre line */}
-            <mesh
-              rotation={[-Math.PI / 2, 0, -av.angle]}
-              position={[cx, Y_PAINT, cz]}
-              material={mats.paint}
-            >
-              <planeGeometry args={[length, 1.2]} />
-            </mesh>
-            {/* sidewalks */}
-            <mesh
-              rotation={[-Math.PI / 2, 0, -av.angle]}
-              position={[cx + perpX * swOff, Y_SIDEWALK, cz + perpZ * swOff]}
-              material={mats.sidewalk}
-            >
-              <planeGeometry args={[length, SIDEWALK_WIDTH]} />
-            </mesh>
-            <mesh
-              rotation={[-Math.PI / 2, 0, -av.angle]}
-              position={[cx - perpX * swOff, Y_SIDEWALK, cz - perpZ * swOff]}
-              material={mats.sidewalk}
-            >
-              <planeGeometry args={[length, SIDEWALK_WIDTH]} />
-            </mesh>
-          </group>
-        );
-      })}
-
-      {/* Ring roads — road ring + inner/outer sidewalk rings. */}
-      {net.rings.map((ring, i) => (
-        <group key={`ring-${i}`}>
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, Y_ROAD, 0]} material={mats.asphalt}>
-            <ringGeometry args={[ring.radius - RING_WIDTH / 2, ring.radius + RING_WIDTH / 2, 160]} />
-          </mesh>
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, Y_SIDEWALK, 0]} material={mats.sidewalk}>
-            <ringGeometry
-              args={[
-                ring.radius - RING_WIDTH / 2 - SIDEWALK_WIDTH,
-                ring.radius - RING_WIDTH / 2,
-                160,
-              ]}
-            />
-          </mesh>
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, Y_SIDEWALK, 0]} material={mats.sidewalk}>
-            <ringGeometry
-              args={[
-                ring.radius + RING_WIDTH / 2,
-                ring.radius + RING_WIDTH / 2 + SIDEWALK_WIDTH,
-                160,
-              ]}
-            />
-          </mesh>
-        </group>
-      ))}
-
-      {/* Crosswalk stripes (instanced). */}
-      <instancedMesh ref={crosswalkRef} args={[undefined, undefined, stripeCount]} material={mats.paint}>
-        <boxGeometry args={[1, 1, 1]} />
-      </instancedMesh>
+      <mesh geometry={road} material={mats.road} receiveShadow />
+      <mesh geometry={paint} material={mats.paint} />
     </group>
   );
-}
-
-/** Build a flat ribbon BufferGeometry of constant width along an XZ polyline,
- *  laid at height y. One mesh for the whole spiral boulevard. */
-function buildRibbon(points: Array<[number, number]>, width: number, y: number): THREE.BufferGeometry {
-  const half = width / 2;
-  const positions: number[] = [];
-  const indices: number[] = [];
-  const n = points.length;
-  for (let i = 0; i < n; i++) {
-    const [x, z] = points[i];
-    // Tangent from neighbouring points.
-    const [px, pz] = points[Math.max(0, i - 1)];
-    const [nx, nz] = points[Math.min(n - 1, i + 1)];
-    let tx = nx - px;
-    let tz = nz - pz;
-    const len = Math.hypot(tx, tz) || 1;
-    tx /= len;
-    tz /= len;
-    // Perpendicular in XZ.
-    const ox = -tz * half;
-    const oz = tx * half;
-    positions.push(x + ox, y, z + oz);
-    positions.push(x - ox, y, z - oz);
-    if (i < n - 1) {
-      const a = i * 2;
-      indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
-    }
-  }
-  const geom = new THREE.BufferGeometry();
-  geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  geom.setIndex(indices);
-  geom.computeVertexNormals();
-  return geom;
 }

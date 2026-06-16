@@ -22,7 +22,7 @@ import { presenceEnabled } from "@/lib/firebase";
 // ~7 Hz throttle, and subscribes to everyone else. When presence is disabled
 // (no databaseURL configured) it renders nothing and never touches Firebase.
 
-const EYE_HEIGHT = 17; // match WalkControls eye level so ghosts read at your height
+const EYE_HEIGHT = 9; // match WalkControls eye level so ghosts read at your height
 const AVATAR_SIZE = 18;
 const PUBLISH_MS = 140; // ~7 Hz
 const CELL_UV = 40 / 4000;

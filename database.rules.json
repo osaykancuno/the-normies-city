@@ -1,5 +1,5 @@
 {
-  "//": "Firebase Realtime Database security rules for ghost presence. Paste these into the Realtime Database → Rules tab of the the-normies-tagbattle project. Presence is world-readable (everyone sees every walker) but each session can only write its OWN node, keyed by its anonymous auth uid. Entries are shape-validated and lightweight; clients prune stale ones and onDisconnect removes them automatically.",
+  "//": "Firebase Realtime Database security rules for ghost presence + proximity voice. Paste these into the Realtime Database → Rules tab of the the-normies-tagbattle project. Presence is world-readable; each session writes only its OWN node, keyed by its anonymous uid. Voice is a per-recipient signalling mailbox: you can only READ your own inbox, and a message may be written into a peer's inbox only if its 'from' equals your uid (so SDP/ICE messages are attributable and unforgeable).",
   "rules": {
     "presence": {
       ".read": true,
@@ -12,6 +12,24 @@
         "normieId": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999" },
         "ts": { ".validate": "newData.isNumber()" },
         "$other": { ".validate": false }
+      }
+    },
+    "voice": {
+      "$owner": {
+        ".read": "auth != null && auth.uid === $owner",
+        ".write": "auth != null && auth.uid === $owner",
+        "inbox": {
+          ".write": "auth != null",
+          "$msgId": {
+            ".validate": "newData.hasChildren(['from', 'ts']) && newData.child('from').val() === auth.uid",
+            "from": { ".validate": "newData.isString()" },
+            "ts": { ".validate": "newData.isNumber()" },
+            "kind": { ".validate": "newData.isString()" },
+            "sdp": { ".validate": "newData.isString()" },
+            "candidate": { ".validate": "newData.isString()" },
+            "$other": { ".validate": false }
+          }
+        }
       }
     }
   }

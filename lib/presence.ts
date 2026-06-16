@@ -46,6 +46,13 @@ export const localWalker = {
   active: false,
 };
 
+/** Shared, non-reactive view of the presence channel for systems that poll
+ *  rather than re-render (e.g. proximity voice). Updated by joinPresence. */
+export const peerRegistry: { peers: RemotePresence[]; selfUid: string | null } = {
+  peers: [],
+  selfUid: null,
+};
+
 export interface PresenceHandle {
   /** Push the local walker state. Cheap; throttle at the call site. */
   publish: (s: Omit<PresenceState, "ts">) => void;
@@ -77,6 +84,7 @@ export function joinPresence(
   ensureAnonAuth().then((id) => {
     if (disposed || !id) return;
     uid = id;
+    peerRegistry.selfUid = id;
     db = getPresenceDb();
     if (!db) return;
 
@@ -103,6 +111,7 @@ export function joinPresence(
         peers.push({ id: pid, ...p });
       }
       latestPeers = peers;
+      peerRegistry.peers = peers;
       onPeers(peers);
     });
 
@@ -113,6 +122,7 @@ export function joinPresence(
       const fresh = latestPeers.filter((p) => now - p.ts <= STALE_MS);
       if (fresh.length !== latestPeers.length) {
         latestPeers = fresh;
+        peerRegistry.peers = fresh;
         onPeers(fresh);
       }
     }, 3000);
@@ -130,6 +140,7 @@ export function joinPresence(
     },
     dispose: () => {
       disposed = true;
+      peerRegistry.peers = [];
       if (pruneTimer) clearInterval(pruneTimer);
       unsub?.();
       if (uid && db) {

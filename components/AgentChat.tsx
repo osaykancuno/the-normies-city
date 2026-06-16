@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { useCity } from "@/lib/store";
@@ -9,6 +9,7 @@ import {
   respond,
   suggestedQuestions,
   type ChatTurn,
+  type DialogueContext,
   type SuggestedQuestion,
 } from "@/lib/agent-dialogue";
 import type { AgentInfo } from "@/lib/types";
@@ -25,6 +26,36 @@ export default function AgentChat() {
   const agentMeta = useCity((s) =>
     tokenId != null ? s.awakenedAgents.get(tokenId) : undefined,
   );
+
+  // Live on-chain context for the deterministic engine — real numbers only.
+  const holders = useCity((s) => s.holders);
+  const buildings = useCity((s) => s.buildings);
+  const buildingsByAddress = useCity((s) => s.buildingsByAddress);
+  const burned = useCity((s) => s.burned);
+  const awakenedSet = useCity((s) => s.awakenedSet);
+  const ctx = useMemo<DialogueContext>(() => {
+    const out: DialogueContext = {};
+    if (burned?.size) out.totalBurned = burned.size;
+    if (awakenedSet?.size) out.totalAwakened = awakenedSet.size;
+    let holderCount = 0;
+    let live = 0;
+    for (const b of buildings) {
+      if (b.kind !== "holder") continue;
+      holderCount++;
+      live += b.tokenIds.length;
+    }
+    if (holderCount) out.totalHolders = holderCount;
+    if (live) out.liveSupply = live;
+    const owner = tokenId != null ? holders?.byToken[tokenId] : undefined;
+    if (owner) {
+      const b = buildingsByAddress.get(owner.toLowerCase());
+      if (b && b.kind === "holder") {
+        out.ownerPortfolio = b.tokenIds.length;
+        out.ownerRank = b.rank + 1; // store rank is 0-based (0 = biggest)
+      }
+    }
+    return out;
+  }, [tokenId, holders, buildings, buildingsByAddress, burned, awakenedSet]);
 
   const { data: info } = useSWR<AgentInfo>(
     tokenId != null ? `/api/agents/${tokenId}` : null,
@@ -80,14 +111,14 @@ export default function AgentChat() {
     setDraft("");
     setThinking(true);
     try {
-      const reply = await respond(q, tokenId, info, turns);
+      const reply = await respond(q, tokenId, info, turns, ctx);
       setTurns((t) => [...t, { role: "agent", text: reply }]);
     } finally {
       setThinking(false);
     }
   };
 
-  const chips: SuggestedQuestion[] = info ? suggestedQuestions(info) : [];
+  const chips: SuggestedQuestion[] = info ? suggestedQuestions(info, ctx) : [];
 
   return (
     <div className="pointer-events-auto fixed bottom-3 right-3 z-40 flex w-[min(380px,calc(100vw-1.5rem))] flex-col bg-on text-off shadow-[0_4px_30px_-6px_rgba(0,0,0,0.6)]">

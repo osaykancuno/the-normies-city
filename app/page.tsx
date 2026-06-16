@@ -6,6 +6,7 @@ import PlayModal from "@/components/PlayModal";
 import WalkHud from "@/components/WalkHud";
 import StreetEntryModal from "@/components/StreetEntryModal";
 import AgentChat from "@/components/AgentChat";
+import VoiceController from "@/components/VoiceController";
 
 export default function Home() {
   return (
@@ -18,6 +19,7 @@ export default function Home() {
       <InfoBanner />
       <PlayModal />
       <WalkHud />
+      <VoiceController />
       <StreetEntryModal />
       <AgentChat />
 
