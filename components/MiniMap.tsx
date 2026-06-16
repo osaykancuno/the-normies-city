@@ -107,6 +107,39 @@ export default function MiniMap() {
       }
       g.restore();
 
+      // Monument markers — edge-clamped waypoints so they always point you to
+      // the Burn Memorial (south, z=+430) and Hall of the Awakened (north,
+      // z=-430), even when off the local view.
+      const drawMon = (wz: number, label: string) => {
+        const dx = 0 - px;
+        const dz = wz - pz;
+        const sx = dx * SCALE;
+        const sz = dz * SCALE;
+        let mx = sx * cosR - sz * sinR;
+        let my = sx * sinR + sz * cosR;
+        const lim = SIZE / 2 - 9;
+        const m = Math.max(Math.abs(mx), Math.abs(my));
+        if (m > lim) {
+          const s = lim / m;
+          mx *= s;
+          my *= s;
+        }
+        const X = cx + mx;
+        const Y = cy + my;
+        g.fillStyle = "rgba(23,24,27,0.92)";
+        g.fillRect(X - 6, Y - 6, 12, 12);
+        g.strokeStyle = "#e3e5e4";
+        g.lineWidth = 1;
+        g.strokeRect(X - 6, Y - 6, 12, 12);
+        g.fillStyle = "#e3e5e4";
+        g.font = "bold 8px monospace";
+        g.textAlign = "center";
+        g.textBaseline = "middle";
+        g.fillText(label, X, Y + 0.5);
+      };
+      drawMon(430, "B"); // Burn Memorial
+      drawMon(-430, "A"); // Hall of the Awakened
+
       // Player — fixed arrow at centre, always pointing up.
       g.fillStyle = "#ffffff";
       g.strokeStyle = "#17181b";

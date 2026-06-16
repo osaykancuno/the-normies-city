@@ -80,7 +80,6 @@ interface Peer {
   analyser?: AnalyserNode;
   data?: Uint8Array<ArrayBuffer>;
   src?: MediaStreamAudioSourceNode;
-  panner?: PannerNode;
   polite: boolean; // true when we are NOT the offer initiator
 }
 
@@ -95,7 +94,6 @@ class VoiceManager {
   private listeners = new Set<Listener>();
   private inboxUnsub: (() => void) | null = null;
   private audioCtx: AudioContext | null = null;
-  private masterGain: GainNode | null = null;
   private enabled = false;
   private transmitting = false;
   private outputMuted = false;
@@ -118,21 +116,20 @@ class VoiceManager {
     };
   }
 
-  /** Lazily build the WebAudio graph: panners → masterGain → speakers. */
+  /** Lazily create an AudioContext — used ONLY for the talking meter (analysis).
+   *  Remote audio is played by the <audio> elements directly, which is the
+   *  reliable path; routing remote WebRTC streams through WebAudio for output
+   *  is silent on some Chromium builds, so we don't. */
   private ensureAudio(): boolean {
-    if (this.audioCtx && this.masterGain) return true;
+    if (this.audioCtx) return true;
     try {
       const Ctx =
         window.AudioContext ||
         (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       this.audioCtx = new Ctx();
-      this.masterGain = this.audioCtx.createGain();
-      this.masterGain.gain.value = this.outputMuted ? 0 : 1;
-      this.masterGain.connect(this.audioCtx.destination);
       return true;
     } catch {
       this.audioCtx = null;
-      this.masterGain = null;
       return false;
     }
   }
@@ -218,14 +215,6 @@ class VoiceManager {
     if (this.db && this.uid) {
       remove(ref(this.db, `voice/${this.uid}`)).catch(() => {});
     }
-    if (this.masterGain) {
-      try {
-        this.masterGain.disconnect();
-      } catch {
-        /* ignore */
-      }
-      this.masterGain = null;
-    }
     if (this.audioCtx) {
       this.audioCtx.close().catch(() => {});
       this.audioCtx = null;
@@ -244,60 +233,30 @@ class VoiceManager {
   /** Manual mute of everyone else (you stay connected, just don't hear them). */
   setOutputMuted(on: boolean) {
     this.outputMuted = on;
-    if (this.masterGain && this.audioCtx) {
-      this.masterGain.gain.setTargetAtTime(on ? 0 : 1, this.audioCtx.currentTime, 0.02);
-    }
-    // Fallback for any peer whose spatial graph didn't build (plain <audio>).
-    for (const [, p] of this.peers) {
-      if (!p.panner) p.audio.muted = on;
-    }
+    for (const [, p] of this.peers) p.audio.muted = on;
     this.emit();
   }
 
   /**
-   * Position the listener (you) and each connected peer in 3D so voices pan by
-   * direction and fade with distance. Called on a throttle by VoiceController.
-   * `heading` is the camera yaw (radians) as written by WalkControls.
+   * Distance falloff: quieter the farther a peer is. Called on a throttle by
+   * VoiceController. True direction panning is intentionally omitted — it needs
+   * WebAudio routing of the remote stream, which is silent on some browsers, so
+   * we keep the reliable element output and just attenuate by distance.
    */
   updateSpatial(
     self: { x: number; z: number; heading: number },
     positions: Map<string, { x: number; z: number }>,
   ) {
-    const ctx = this.audioCtx;
-    if (!ctx) return;
-    const fx = Math.sin(self.heading);
-    const fz = Math.cos(self.heading);
-    const L = ctx.listener as AudioListener & {
-      positionX?: AudioParam;
-      forwardX?: AudioParam;
-      upX?: AudioParam;
-    };
-    if (L.positionX) {
-      L.positionX.value = self.x;
-      L.positionY!.value = 0;
-      L.positionZ!.value = self.z;
-      L.forwardX!.value = fx;
-      L.forwardY!.value = 0;
-      L.forwardZ!.value = fz;
-      L.upX!.value = 0;
-      L.upY!.value = 1;
-      L.upZ!.value = 0;
-    } else {
-      L.setPosition?.(self.x, 0, self.z);
-      L.setOrientation?.(fx, 0, fz, 0, 1, 0);
-    }
     for (const [id, p] of this.peers) {
-      if (!p.panner) continue;
       const pos = positions.get(id);
       if (!pos) continue;
-      const pan = p.panner as PannerNode & { positionX?: AudioParam };
-      if (pan.positionX) {
-        pan.positionX.value = pos.x;
-        pan.positionY!.value = 0;
-        pan.positionZ!.value = pos.z;
-      } else {
-        pan.setPosition?.(pos.x, 0, pos.z);
-      }
+      const dx = pos.x - self.x;
+      const dz = pos.z - self.z;
+      const d = Math.hypot(dx, dz);
+      let v = 1;
+      if (d >= MAX_DISTANCE) v = 0;
+      else if (d > REF_DISTANCE) v = 1 - (d - REF_DISTANCE) / (MAX_DISTANCE - REF_DISTANCE);
+      p.audio.volume = Math.max(0, Math.min(1, v));
     }
   }
 
@@ -444,7 +403,6 @@ class VoiceManager {
     }
     try {
       p.src?.disconnect();
-      p.panner?.disconnect();
       p.analyser?.disconnect();
     } catch {
       /* ignore */
@@ -460,35 +418,24 @@ class VoiceManager {
   // --- Remote audio graph: spatial panner + talking meter ------------------
 
   private attachAudio(peer: Peer, stream: MediaStream) {
-    if (!this.ensureAudio() || !this.audioCtx || !this.masterGain) return;
-    try {
-      const ctx = this.audioCtx;
-      const src = ctx.createMediaStreamSource(stream);
-
-      // Talking meter (a side branch, not routed to the speakers).
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 256;
-      src.connect(analyser);
-      peer.analyser = analyser;
-      peer.data = new Uint8Array(new ArrayBuffer(analyser.fftSize));
-
-      // Spatial panner: pans by direction, fades with distance.
-      const panner = ctx.createPanner();
-      panner.panningModel = "HRTF";
-      panner.distanceModel = "inverse";
-      panner.refDistance = REF_DISTANCE;
-      panner.maxDistance = MAX_DISTANCE;
-      panner.rolloffFactor = 1.3;
-      src.connect(panner);
-      panner.connect(this.masterGain);
-      peer.src = src;
-      peer.panner = panner;
-
-      // Spatial graph owns the sound now — mute the element to avoid doubling.
-      peer.audio.muted = true;
-    } catch {
-      // Spatial graph failed — fall back to plain stereo via the element.
-      peer.audio.muted = this.outputMuted;
+    // Output: the <audio> element plays the remote stream directly (reliable).
+    peer.audio.muted = this.outputMuted;
+    peer.audio.volume = 1;
+    // Meter (analysis only): a MediaStreamSource → Analyser branch reads the
+    // levels for the "speaking" indicator. It's NOT connected to the speakers,
+    // so it's unaffected by the WebAudio remote-output quirk.
+    if (this.ensureAudio() && this.audioCtx) {
+      try {
+        const src = this.audioCtx.createMediaStreamSource(stream);
+        const analyser = this.audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        src.connect(analyser);
+        peer.src = src;
+        peer.analyser = analyser;
+        peer.data = new Uint8Array(new ArrayBuffer(analyser.fftSize));
+      } catch {
+        /* meter is optional */
+      }
     }
   }
 
