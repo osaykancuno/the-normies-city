@@ -90,11 +90,12 @@ export default function WalkHud() {
         </div>
       </div>
 
-      {/* Exit button — the only interactive element. */}
+      {/* Exit button — sits just below the minimap (top-right) so they don't
+          overlap. The only interactive element here. */}
       <button
         type="button"
         onClick={() => setViewMode("orbit")}
-        className="pointer-events-auto absolute right-3 top-3 bg-off px-3 py-1.5 text-[10px] tracking-widest text-on hover:bg-off/80"
+        className="pointer-events-auto absolute right-3 top-[182px] bg-off px-3 py-1.5 text-[10px] tracking-widest text-on hover:bg-off/80"
       >
         EXIT ✕
       </button>

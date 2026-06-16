@@ -4,6 +4,7 @@ import CityHeader from "@/components/CityHeader";
 import InfoBanner from "@/components/InfoBanner";
 import PlayModal from "@/components/PlayModal";
 import WalkHud from "@/components/WalkHud";
+import MiniMap from "@/components/MiniMap";
 import StreetEntryModal from "@/components/StreetEntryModal";
 import AgentChat from "@/components/AgentChat";
 import VoiceController from "@/components/VoiceController";
@@ -19,6 +20,7 @@ export default function Home() {
       <InfoBanner />
       <PlayModal />
       <WalkHud />
+      <MiniMap />
       <VoiceController />
       <StreetEntryModal />
       <AgentChat />
