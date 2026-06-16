@@ -20,9 +20,19 @@ export default function SearchBar() {
     const q = value.trim().toLowerCase();
     if (!q) return;
 
-    // Persona name (e.g. "Zori") — only matches if the snapshot has loaded and
-    // an awakened Normie carries that exact display name.
-    const personaHit = nameIndex.get(q);
+    // Persona name (e.g. "Zori"). Try an exact match first, then a forgiving
+    // prefix/substring match so partial names work — handy on mobile where
+    // typing the full agent name is fiddly.
+    let personaHit = nameIndex.get(q);
+    if (personaHit === undefined && q.length >= 2 && /[a-z]/.test(q) && !ADDRESS_RE.test(q)) {
+      let prefix: number | undefined;
+      let contains: number | undefined;
+      for (const [name, id] of nameIndex) {
+        if (name.startsWith(q)) { prefix = id; break; }
+        if (contains === undefined && name.includes(q)) contains = id;
+      }
+      personaHit = prefix ?? contains;
+    }
     if (personaHit !== undefined) {
       const owner = holders?.byToken[personaHit];
       if (owner) {
@@ -89,8 +99,8 @@ export default function SearchBar() {
           setValue(e.target.value);
           setError(null);
         }}
-        placeholder="search · #id · 0x… · agent name"
-        className="w-[min(240px,55vw)] bg-on px-2.5 text-[11px] tracking-wide text-off placeholder:text-off/40 focus:bg-ink focus:outline-none"
+        placeholder="#id · 0x… · agent name"
+        className="w-[min(220px,42vw)] bg-on px-2.5 text-[11px] tracking-wide text-off placeholder:text-off/40 focus:bg-ink focus:outline-none sm:w-[min(240px,55vw)]"
         spellCheck={false}
         autoCorrect="off"
       />

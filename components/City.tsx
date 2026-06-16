@@ -3,13 +3,13 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { Grid } from "@react-three/drei";
 import { useCity } from "@/lib/store";
 import { CITY_OUTER_RADIUS } from "@/lib/layout";
 import { currentSkyState, type SkyState } from "@/lib/daynight";
 import InstancedNormies from "./InstancedNormies";
 import AwakenedAntennas from "./AwakenedAntennas";
 import Streets from "./Streets";
+import Sidewalks from "./Sidewalks";
 import StreetLamps from "./StreetLamps";
 import CityProps from "./CityProps";
 import Monuments from "./Monuments";
@@ -24,8 +24,10 @@ import CityLife from "./CityLife";
 const BRAND_INK = "#1a1b1d";
 const BRAND_OFF = "#e3e5e4";
 const BRAND_ON = "#48494b";
-const BRAND_GRID = "#2c2d2f";
-const GROUND_EXTENT = CITY_OUTER_RADIUS * 2.2;
+// City floor = asphalt, a touch above the ink void so it reads as paved ground
+// rather than emptiness; the avenue roads (#26272b) and sidewalk aprons (#3a3b40)
+// layer on top of this.
+const ASPHALT = "#1e1f23";
 
 export default function City() {
   const setTraits = useCity((s) => s.setTraits);
@@ -138,6 +140,7 @@ export default function City() {
       />
       <Ground />
       <Streets />
+      {buildings.length > 0 && <Sidewalks />}
       {buildings.length > 0 && <StreetLamps />}
       {buildings.length > 0 && <CityProps />}
       <Horizon skyColor={skyColor} />
@@ -188,26 +191,10 @@ function SkyDriver({ color, sky }: { color: THREE.Color; sky: SkyState }) {
 
 function Ground() {
   return (
-    <>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]} receiveShadow>
-        <circleGeometry args={[CITY_OUTER_RADIUS, 96]} />
-        <meshStandardMaterial color={BRAND_INK} roughness={1} />
-      </mesh>
-      <Grid
-        position={[0, 0, 0]}
-        args={[GROUND_EXTENT, GROUND_EXTENT]}
-        cellSize={70}
-        sectionSize={350}
-        cellColor={BRAND_GRID}
-        sectionColor={BRAND_ON}
-        cellThickness={0.6}
-        sectionThickness={1.0}
-        fadeDistance={CITY_OUTER_RADIUS * 0.95}
-        fadeStrength={2.2}
-        infiniteGrid={false}
-        followCamera={false}
-      />
-    </>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.2, 0]} receiveShadow>
+      <circleGeometry args={[CITY_OUTER_RADIUS, 96]} />
+      <meshStandardMaterial color={ASPHALT} roughness={1} />
+    </mesh>
   );
 }
 

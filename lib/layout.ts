@@ -59,17 +59,18 @@ const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5)); // ≈ 137.5°
 // (max outer extent ~410 incl. plinth + awning), so the spiral now starts at
 // 520 to leave a clean 60 u walkway between the plaza edge and the first
 // building. Keep this in sync if the plaza grows again.
-// Buildings are now at most 3 cells wide (≈45 u), so the old spacing (tuned for
-// the wider tier footprints) left big empty gaps. Tightened so neighbours sit a
-// few units apart (≈8 u min, ≈16 u avg) — a dense downtown feel — and the whole
-// city stays compact. With ~1.9k holders the outermost building sits at ≈1370;
-// headroom to ≈3.3k holders before reaching the city limit.
+// Buildings are at most 3 cells wide (≈45 u). The spiral spacing is tuned so the
+// TRUE global minimum gap between any two neighbours is ≈13 u — tight enough to
+// read as a dense downtown, but always wider than the walking camera's body
+// (PLAYER_RADIUS=4, i.e. 8 u) so you can pass between buildings in street view
+// and no two buildings ever overlap. With ~1.9k holders the outermost building
+// sits at ≈1720; headroom well past the current holder count.
 const SPIRAL_BASE_RADIUS = 500;
-const SPIRAL_GROWTH = 20;
-/** Outer city limit — used to size the ground, fog and horizon. Pulled in to
- *  hug the now-compact building cluster so the streets/greenery don't trail off
- *  into an empty plain. */
-export const CITY_OUTER_RADIUS = 1650;
+const SPIRAL_GROWTH = 28;
+/** Outer city limit — used to size the ground, fog and horizon. Sits just
+ *  beyond the outermost building so the streets/greenery form a thin green belt
+ *  and then fade into fog — no empty plain, no buildings off the ground edge. */
+export const CITY_OUTER_RADIUS = 1820;
 
 /**
  * Architectural tiers based on portfolio size. Each tier has a distinct silhouette so

@@ -15,7 +15,8 @@ import { localWalker } from "@/lib/presence";
 // city's buildings. Additive: orbit/fly are untouched.
 
 // Tunables — all the "feel" of the mode lives here.
-const EYE_HEIGHT = 17; // camera height above ground — standing-person eye level
+const EYE_HEIGHT = 9; // camera eye level — kept well below the roof of a 1-NFT
+                      // house (15 u tall) so even the smallest buildings tower
 const WALK_SPEED = 55; // world units / second
 const SPRINT_MULT = 1.8; // hold Shift to sprint
 // Spawn inside the open plaza, just past the central obelisk's base (radius

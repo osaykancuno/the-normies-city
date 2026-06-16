@@ -1,15 +1,8 @@
 import CityClient from "@/components/CityClient";
 import ProfilePanel from "@/components/ProfilePanel";
-import CanvasStatusBanner from "@/components/CanvasStatus";
-import SearchBar from "@/components/SearchBar";
-import SyncBadge from "@/components/SyncBadge";
+import CityHeader from "@/components/CityHeader";
 import InfoBanner from "@/components/InfoBanner";
 import PlayModal from "@/components/PlayModal";
-import NewHoldersBadge from "@/components/NewHoldersBadge";
-import RefreshButton from "@/components/RefreshButton";
-import AgentModeToggle from "@/components/AgentModeToggle";
-import UpstreamBadge from "@/components/UpstreamBadge";
-import WalkModeToggle from "@/components/WalkModeToggle";
 import WalkHud from "@/components/WalkHud";
 import StreetEntryModal from "@/components/StreetEntryModal";
 import AgentChat from "@/components/AgentChat";
@@ -19,63 +12,7 @@ export default function Home() {
     <main data-city className="relative h-screen w-screen overflow-hidden">
       <CityClient />
 
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-10 p-3">
-        <div className="pointer-events-auto inline-flex max-w-full flex-wrap items-stretch gap-px bg-ink/40 text-off shadow-[0_2px_24px_-4px_rgba(0,0,0,0.6)]">
-          {/* Brand block — inverted for primary attention. */}
-          <div className="flex items-center bg-off px-3 py-1.5 text-sm tracking-widest text-on">
-            THE NORMIES CITY
-          </div>
-
-          {/* Data lineage. */}
-          <a
-            href="https://api.normies.art/"
-            target="_blank"
-            rel="noreferrer"
-            className="hidden items-center bg-on px-2.5 py-1.5 text-[10px] tracking-wider text-off/70 hover:text-off sm:flex"
-          >
-            <span className="opacity-60">live from </span>
-            <span className="ml-1 underline">api.normies.art</span>
-          </a>
-
-          {/* Search. */}
-          <SearchBar />
-
-          {/* Sync stats. */}
-          <SyncBadge />
-
-          {/* New holders counter — flashes when one joins, click flies to them. */}
-          <NewHoldersBadge />
-
-          {/* Agent Mode — dims dormant Normies and highlights awakened ERC-8004 agents. */}
-          <AgentModeToggle />
-
-          {/* First-person street-level exploration (desktop). */}
-          <WalkModeToggle />
-
-          {/* Only visible when upstream api.normies.art is down — tells the
-              user the city is running on cached data. */}
-          <UpstreamBadge />
-
-          {/* Canvas state. */}
-          <CanvasStatusBanner />
-
-          {/* Force on-chain refresh — flushes SWR + nudges the live polls. */}
-          <RefreshButton />
-
-          {/* Creator credit — last pill, links to Twitter / X. */}
-          <a
-            href="https://x.com/osaykancuno"
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center bg-on px-2.5 py-1.5 text-[10px] tracking-widest text-off/70 transition hover:bg-off hover:text-on"
-            title="Built by @osaykancuno"
-          >
-            <span className="opacity-60">BUILT BY </span>
-            <span className="ml-1">@osaykancuno</span>
-            <span className="ml-1 opacity-60">↗</span>
-          </a>
-        </div>
-      </header>
+      <CityHeader />
 
       <ProfilePanel />
       <InfoBanner />
