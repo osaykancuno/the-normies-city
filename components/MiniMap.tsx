@@ -1,60 +1,39 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useCity } from "@/lib/store";
-import { CITY_OUTER_RADIUS } from "@/lib/layout";
 import { localWalker, peerRegistry } from "@/lib/presence";
 import { talkingRegistry } from "@/lib/voice";
 
-// Square "pixel" minimap (top-right), shown in street view. North-up overview of
-// the whole city: holder buildings are faint pixels baked once into a backdrop;
-// every other Normie present is a bright square (pulsing when they're speaking);
-// you are a white arrow pointing where you face. Purely a HUD canvas — cheap to
-// redraw (a cached image + a handful of dots).
+// GTA-style square "pixel" minimap (top-right), shown in street view. It's
+// CENTRED ON YOU and ROTATES with your heading — your arrow stays fixed pointing
+// up while the city turns underneath. Zoomed to a local area so nearby blocks +
+// Normies read clearly. Holder buildings are faint pixels (culled to the view),
+// other present Normies are bright squares (pulse + ring when speaking), and a
+// small N marks north as the map spins. Cheap: a few dozen rects per frame.
 
 const SIZE = 150; // px, square
-const PAD = 1.04; // a little margin so edge buildings aren't clipped
+const VIEW_RADIUS = 340; // world units from centre to edge (zoom)
+const SCALE = SIZE / 2 / VIEW_RADIUS;
+const CULL = VIEW_RADIUS * 1.5; // a touch past the corners
+const CULL2 = CULL * CULL;
 
 export default function MiniMap() {
   const viewMode = useCity((s) => s.viewMode);
   const buildings = useCity((s) => s.buildings);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const bgRef = useRef<HTMLCanvasElement | null>(null);
   const active = viewMode === "walk";
 
-  const scale = SIZE / (2 * CITY_OUTER_RADIUS * PAD);
-  const cx = SIZE / 2;
-  const cy = SIZE / 2;
-
-  // Bake the static backdrop (city disc + building pixels + centre) once per
-  // layout change.
-  useEffect(() => {
-    if (!active) return;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const off = document.createElement("canvas");
-    off.width = SIZE * dpr;
-    off.height = SIZE * dpr;
-    const g = off.getContext("2d");
-    if (!g) return;
-    g.scale(dpr, dpr);
-    g.fillStyle = "rgba(23,24,27,0.82)";
-    g.fillRect(0, 0, SIZE, SIZE);
-    g.fillStyle = "rgba(42,43,48,0.55)";
-    g.beginPath();
-    g.arc(cx, cy, CITY_OUTER_RADIUS * scale, 0, Math.PI * 2);
-    g.fill();
-    g.fillStyle = "rgba(130,132,136,0.7)";
+  // Flat array of holder positions for fast per-frame culling.
+  const holders = useMemo(() => {
+    const out: number[] = [];
     for (const b of buildings) {
       if (b.kind !== "holder") continue;
-      g.fillRect(cx + b.x * scale - 0.6, cy + b.z * scale - 0.6, 1.2, 1.2);
+      out.push(b.x, b.z);
     }
-    // Central plaza / obelisk marker.
-    g.fillStyle = "rgba(227,229,228,0.55)";
-    g.fillRect(cx - 2, cy - 2, 4, 4);
-    bgRef.current = off;
-  }, [active, buildings, scale, cx, cy]);
+    return Float32Array.from(out);
+  }, [buildings]);
 
-  // Animate the live layer.
   useEffect(() => {
     if (!active) return;
     const cv = canvasRef.current;
@@ -64,61 +43,105 @@ export default function MiniMap() {
     cv.height = SIZE * dpr;
     const g = cv.getContext("2d");
     if (!g) return;
+    const cx = SIZE / 2;
+    const cy = SIZE / 2;
     let raf = 0;
 
     const draw = () => {
+      const px = localWalker.x;
+      const pz = localWalker.z;
+      const h = localWalker.heading;
+      // Rotate so the player's forward (sin h, cos h) points up (screen -y).
+      const rot = h + Math.PI;
+      const cosR = Math.cos(rot);
+      const sinR = Math.sin(rot);
+
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
       g.clearRect(0, 0, SIZE, SIZE);
-      if (bgRef.current) g.drawImage(bgRef.current, 0, 0, SIZE, SIZE);
+      // Ground.
+      g.fillStyle = "rgba(23,24,27,0.82)";
+      g.fillRect(0, 0, SIZE, SIZE);
 
+      // Clip to the square so rotated content never spills the frame.
+      g.save();
+      g.beginPath();
+      g.rect(0, 0, SIZE, SIZE);
+      g.clip();
+
+      // Buildings (culled to the local view), rotated about the player.
+      g.fillStyle = "rgba(130,132,136,0.7)";
+      for (let i = 0; i < holders.length; i += 2) {
+        const dx = holders[i] - px;
+        const dz = holders[i + 1] - pz;
+        if (dx * dx + dz * dz > CULL2) continue;
+        const sx = dx * SCALE;
+        const sz = dz * SCALE;
+        const mx = cx + (sx * cosR - sz * sinR);
+        const my = cy + (sx * sinR + sz * cosR);
+        g.fillRect(mx - 1.4, my - 1.4, 2.8, 2.8);
+      }
+
+      // Other Normies present.
       const me = peerRegistry.selfUid;
       let present = 1; // you
       for (const p of peerRegistry.peers) {
         if (p.id === me) continue;
         present++;
-        const mx = cx + p.x * scale;
-        const my = cy + p.z * scale;
-        const talking = talkingRegistry.ids.has(p.id);
-        if (talking) {
+        const dx = p.x - px;
+        const dz = p.z - pz;
+        if (dx * dx + dz * dz > CULL2) continue;
+        const sx = dx * SCALE;
+        const sz = dz * SCALE;
+        const mx = cx + (sx * cosR - sz * sinR);
+        const my = cy + (sx * sinR + sz * cosR);
+        if (talkingRegistry.ids.has(p.id)) {
           g.fillStyle = "#e3e5e4";
           g.fillRect(mx - 2.5, my - 2.5, 5, 5);
           g.strokeStyle = "rgba(227,229,228,0.5)";
           g.lineWidth = 1;
           g.strokeRect(mx - 4.5, my - 4.5, 9, 9);
         } else {
-          g.fillStyle = "rgba(227,229,228,0.85)";
-          g.fillRect(mx - 1.5, my - 1.5, 3, 3);
+          g.fillStyle = "rgba(227,229,228,0.9)";
+          g.fillRect(mx - 1.8, my - 1.8, 3.6, 3.6);
         }
       }
+      g.restore();
 
-      // You — an arrow pointing along the camera heading.
-      const px = cx + localWalker.x * scale;
-      const py = cy + localWalker.z * scale;
-      const fx = Math.sin(localWalker.heading);
-      const fy = Math.cos(localWalker.heading);
-      const ax = -fy;
-      const ay = fx;
-      g.beginPath();
-      g.moveTo(px + fx * 6, py + fy * 6);
-      g.lineTo(px - fx * 3 + ax * 3.6, py - fy * 3 + ay * 3.6);
-      g.lineTo(px - fx * 3 - ax * 3.6, py - fy * 3 - ay * 3.6);
-      g.closePath();
+      // Player — fixed arrow at centre, always pointing up.
       g.fillStyle = "#ffffff";
-      g.fill();
       g.strokeStyle = "#17181b";
       g.lineWidth = 1;
+      g.beginPath();
+      g.moveTo(cx, cy - 6);
+      g.lineTo(cx + 4, cy + 5);
+      g.lineTo(cx, cy + 2.5);
+      g.lineTo(cx - 4, cy + 5);
+      g.closePath();
+      g.fill();
       g.stroke();
 
+      // North marker (world -z), rotated with the map.
+      const nx = 0 * cosR - -1 * sinR; // = sinR
+      const ny = 0 * sinR + -1 * cosR; // = -cosR
+      const r = SIZE / 2 - 9;
+      g.fillStyle = "rgba(227,229,228,0.8)";
+      g.font = "bold 9px monospace";
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.fillText("N", cx + nx * r, cy + ny * r);
+
       // Count of Normies present.
-      g.fillStyle = "rgba(227,229,228,0.85)";
+      g.textAlign = "left";
+      g.textBaseline = "alphabetic";
       g.font = "8px monospace";
+      g.fillStyle = "rgba(227,229,228,0.85)";
       g.fillText(`${present} here`, 4, 11);
 
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [active, scale, cx, cy]);
+  }, [active, holders]);
 
   if (!active) return null;
   return (
