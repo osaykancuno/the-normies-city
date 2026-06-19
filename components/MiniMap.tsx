@@ -12,7 +12,12 @@ import { talkingRegistry } from "@/lib/voice";
 // other present Normies are bright squares (pulse + ring when speaking), and a
 // small N marks north as the map spins. Cheap: a few dozen rects per frame.
 
-const SIZE = 150; // px, square
+// Smaller on phones so it doesn't crowd the touch HUD.
+const SIZE =
+  typeof window !== "undefined" &&
+  window.matchMedia?.("(pointer: coarse)").matches
+    ? 104
+    : 150; // px, square
 const VIEW_RADIUS = 340; // world units from centre to edge (zoom)
 const SCALE = SIZE / 2 / VIEW_RADIUS;
 const CULL = VIEW_RADIUS * 1.5; // a touch past the corners

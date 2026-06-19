@@ -51,6 +51,7 @@ export default function WalkControls() {
   const yaw = useRef(0);
   const pitch = useRef(0);
   const euler = useRef(new THREE.Euler(0, 0, 0, "YXZ"));
+  const prevFov = useRef<number | null>(null);
 
   // Rebuild the collider whenever the layout changes (transfer/burn). buildings
   // is a stable reference until a recompute, so this memo is cheap.
@@ -112,8 +113,22 @@ export default function WalkControls() {
       touchInput.mz = 0;
       touchInput.lookDX = 0;
       touchInput.lookDY = 0;
+      // Widen the FOV on phones: at the default 55° vertical, a tall portrait
+      // viewport ends up with a very narrow HORIZONTAL FOV (tunnel vision), so
+      // everything feels right in your face. ~82° vertical opens it up.
+      const cam = camera as THREE.PerspectiveCamera;
+      if (cam.isPerspectiveCamera) {
+        prevFov.current = cam.fov;
+        cam.fov = 82;
+        cam.updateProjectionMatrix();
+      }
       setWalkLocked(true);
       return () => {
+        if (prevFov.current != null && cam.isPerspectiveCamera) {
+          cam.fov = prevFov.current;
+          cam.updateProjectionMatrix();
+          prevFov.current = null;
+        }
         localWalker.active = false;
         useCity.getState().setNearbyAgentId(null);
         useCity.getState().setWalkLocked(false);

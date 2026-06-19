@@ -72,8 +72,15 @@ export default function WalkHud() {
         <div className="h-1.5 w-1.5 rounded-full bg-off/80 shadow-[0_0_0_3px_rgba(26,27,29,0.5)]" />
       </div>
 
-      {/* Live on-chain readout — visible while the page header is hidden. */}
-      <div className="absolute left-1/2 top-2 -translate-x-1/2 bg-ink/70 px-3 py-1 text-[10px] tracking-widest text-off/85 tabular-nums">
+      {/* Live on-chain readout — visible while the page header is hidden. On
+          touch it sits under the avatar badge (top-left) so it never collides
+          with the minimap; on desktop it's centred up top. */}
+      <div
+        className={
+          "absolute bg-ink/70 px-2.5 py-1 text-[10px] tracking-widest text-off/85 tabular-nums " +
+          (touch ? "left-3 top-[58px]" : "left-1/2 top-2 -translate-x-1/2")
+        }
+      >
         ⛏ {stats.live.toLocaleString()} LIVE · 🔥 {burned.size.toLocaleString()} · ✦{" "}
         {awakenedSet.size.toLocaleString()}
       </div>
@@ -97,8 +104,9 @@ export default function WalkHud() {
         </div>
       </div>
 
-      {/* Proximity prompt — talk to a nearby awakened Normie. */}
-      {nearbyName && chatTokenId == null && (
+      {/* Proximity prompt — talk to a nearby awakened Normie (desktop; touch has
+          its own TALK button in WalkTouchControls). */}
+      {!touch && nearbyName && chatTokenId == null && (
         <button
           type="button"
           onClick={() => nearbyAgentId != null && openChat(nearbyAgentId)}

@@ -137,70 +137,72 @@ export default function WalkTouchControls() {
         </div>
       )}
 
-      {/* Action buttons (bottom-right). */}
-      <div className="fixed bottom-6 right-4 z-30 flex flex-col items-end gap-2">
-        {nearbyName && chatTokenId == null && (
-          <button
-            type="button"
-            onClick={() => nearbyAgentId != null && openChat(nearbyAgentId)}
-            className="bg-off px-3 py-2 text-[11px] tracking-widest text-on"
-          >
-            TALK · {nearbyName.toUpperCase()}
-          </button>
-        )}
+      {/* EXIT — top-right, tucked under the minimap so it never overlaps the
+          bottom controls. */}
+      <button
+        type="button"
+        onClick={() => setViewMode("orbit")}
+        className="fixed right-3 top-[130px] z-30 bg-off px-3 py-1.5 text-[10px] tracking-widest text-on"
+      >
+        EXIT ✕
+      </button>
 
-        {presenceEnabled() && (
-          <div className="flex items-center gap-2">
-            {voice?.enabled && (
-              <button
-                type="button"
-                onClick={() => vm.setOutputMuted(!voice.outputMuted)}
-                className={
-                  "px-3 py-2 text-[11px] tracking-widest " +
-                  (voice.outputMuted ? "bg-off text-on" : "bg-ink/70 text-off/85")
-                }
-              >
-                {voice.outputMuted ? "🔇" : "🔊"}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => (voice?.enabled ? vm.disable() : void vm.enable())}
-              className={
-                "px-3 py-2 text-[11px] tracking-widest " +
-                (voice?.enabled ? "bg-off text-on" : "bg-ink/70 text-off/85")
-              }
-            >
-              {voice?.enabled ? "VOICE ON" : "VOICE"}
-            </button>
-            <button
-              type="button"
-              onPointerDown={(e) => {
-                e.preventDefault();
-                if (!voice?.enabled) void vm.enable();
-                else vm.setTransmitting(true);
-              }}
-              onPointerUp={() => vm.setTransmitting(false)}
-              onPointerCancel={() => vm.setTransmitting(false)}
-              className={
-                "select-none px-4 py-3 text-[12px] tracking-widest " +
-                (voice?.transmitting ? "bg-off text-on" : "bg-ink/70 text-off")
-              }
-              style={{ touchAction: "none" }}
-            >
-              🎙 {voice?.transmitting ? "ON AIR" : "TALK"}
-            </button>
-          </div>
-        )}
-
+      {/* Proximity TALK — bottom-centre, above the controls. */}
+      {nearbyName && chatTokenId == null && (
         <button
           type="button"
-          onClick={() => setViewMode("orbit")}
-          className="bg-ink/70 px-3 py-2 text-[10px] tracking-widest text-off/85"
+          onClick={() => nearbyAgentId != null && openChat(nearbyAgentId)}
+          className="fixed bottom-28 left-1/2 z-30 -translate-x-1/2 bg-off px-4 py-2 text-[11px] tracking-widest text-on"
         >
-          EXIT ✕
+          TALK · {nearbyName.toUpperCase()}
         </button>
-      </div>
+      )}
+
+      {/* Voice cluster — bottom-right, stacked vertically so it stays narrow and
+          never reaches across to the joystick on small phones. */}
+      {presenceEnabled() && (
+        <div className="fixed bottom-6 right-4 z-30 flex flex-col items-end gap-2">
+          {voice?.enabled && (
+            <button
+              type="button"
+              onClick={() => vm.setOutputMuted(!voice.outputMuted)}
+              className={
+                "px-3 py-2 text-[13px] " +
+                (voice.outputMuted ? "bg-off text-on" : "bg-ink/70 text-off/85")
+              }
+            >
+              {voice.outputMuted ? "🔇" : "🔊"}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => (voice?.enabled ? vm.disable() : void vm.enable())}
+            className={
+              "px-3 py-2 text-[10px] tracking-widest " +
+              (voice?.enabled ? "bg-off text-on" : "bg-ink/70 text-off/85")
+            }
+          >
+            {voice?.enabled ? "VOICE ON" : "VOICE"}
+          </button>
+          <button
+            type="button"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              if (!voice?.enabled) void vm.enable();
+              else vm.setTransmitting(true);
+            }}
+            onPointerUp={() => vm.setTransmitting(false)}
+            onPointerCancel={() => vm.setTransmitting(false)}
+            className={
+              "select-none px-5 py-3 text-[12px] tracking-widest " +
+              (voice?.transmitting ? "bg-off text-on" : "bg-ink/70 text-off")
+            }
+            style={{ touchAction: "none" }}
+          >
+            🎙 {voice?.transmitting ? "ON AIR" : "TALK"}
+          </button>
+        </div>
+      )}
     </>
   );
 }
