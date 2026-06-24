@@ -13,6 +13,7 @@ import Sidewalks from "./Sidewalks";
 import StreetLamps from "./StreetLamps";
 import CityProps from "./CityProps";
 import Monuments from "./Monuments";
+import MarketMarkers from "./MarketMarkers";
 import Ghosts from "./Ghosts";
 import CameraControls from "./CameraControls";
 import ActivityEffects from "./ActivityEffects";
@@ -151,6 +152,7 @@ export default function City() {
         <Plaza />
         <Arena />
         <Monuments />
+        {buildings.length > 0 && <MarketMarkers />}
         <ActivityEffects />
         <CityLife />
         <Ghosts />

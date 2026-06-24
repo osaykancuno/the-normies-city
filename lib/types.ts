@@ -66,6 +66,22 @@ export interface LegendaryCanvas {
   artistName: string;
 }
 
+/** Live marketplace summary from GET /rarity/stats. */
+export interface RarityStats {
+  listed: number;
+  floorPrice: number;
+  openseaConnected: boolean;
+  supply: number;
+  burned: number;
+  awake: number;
+}
+
+/** One item from GET /rarity/normies?listed=1 (only the bits we use). */
+export interface RarityListedItem {
+  id: number;
+  listing?: { tokenId: number; priceEth: number; currency: string; url: string };
+}
+
 /** One row from GET /zombies/conversions. A token is a live zombie when
  *  `revealed` is true and `cancelled` is false. */
 export interface ZombieConversion {

@@ -25,6 +25,7 @@ export default function WalkHud() {
   const buildings = useCity((s) => s.buildings);
   const zombieSet = useCity((s) => s.zombieSet);
   const legendary = useCity((s) => s.legendary);
+  const market = useCity((s) => s.market);
 
   // Live on-chain readout for street view (the header is hidden here). These
   // numbers update as the live data polls land, so the visitor still sees the
@@ -86,6 +87,13 @@ export default function WalkHud() {
         ⛏ {stats.live.toLocaleString()} LIVE · 🔥 {burned.size.toLocaleString()} · ✦{" "}
         {awakenedSet.size.toLocaleString()} · 🧟 {zombieSet.size.toLocaleString()} · 🖼️{" "}
         {legendary.length.toLocaleString()}
+        {market?.listed != null && (
+          <>
+            {" "}
+            · 🏷️ {market.listed.toLocaleString()}
+            {market.floor != null ? ` · Ξ${market.floor.toFixed(3)}` : ""}
+          </>
+        )}
       </div>
 
       {/* If the browser ever drops the pointer lock mid-walk, a tiny tap hint

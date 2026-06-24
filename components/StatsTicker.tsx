@@ -2,6 +2,7 @@
 
 import useSWR from "swr";
 import type { HistoryStats } from "@/lib/types";
+import { useCity } from "@/lib/store";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -9,6 +10,7 @@ export default function StatsTicker() {
   const { data } = useSWR<HistoryStats>("/api/stats", fetcher, {
     refreshInterval: 15_000,
   });
+  const market = useCity((s) => s.market);
 
   return (
     <div className="pointer-events-auto flex gap-1 text-[10px] tracking-wide">
@@ -16,7 +18,11 @@ export default function StatsTicker() {
       <Stat label="TRANSFORMS" value={data?.totalTransforms} />
       <Stat label="ZOMBIES" value={data?.totalZombies} />
       <Stat label="LEGENDARY" value={data?.totalLegendaryCanvases} />
-      <Stat label="ACTION POINTS" value={data?.totalActionPointsDistributed} />
+      <Stat label="LISTED" value={market?.listed ?? undefined} />
+      <Stat
+        label="FLOOR Ξ"
+        value={market?.floor != null ? market.floor.toFixed(3) : undefined}
+      />
     </div>
   );
 }

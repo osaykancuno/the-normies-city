@@ -155,6 +155,20 @@ interface CityState {
   setLegendary: (rows: { tokenId: number; artist: string }[]) => void;
   setHistoryStats: (s: HistoryStats | null) => void;
 
+  // ---------- live marketplace (Market District) ----------
+  /** Token IDs currently listed on OpenSea. */
+  listedSet: Set<number>;
+  /** TokenId → listing price in ETH. */
+  listedPrice: Map<number, number>;
+  /** Bumped on listing-set change. */
+  marketVersion: number;
+  /** Collection floor price (ETH) + listed count + OpenSea connectivity. */
+  market: { floor: number | null; listed: number | null; openseaConnected: boolean } | null;
+  setMarket: (
+    summary: { floor: number | null; listed: number | null; openseaConnected: boolean },
+    items: { id: number; priceEth: number | null }[],
+  ) => void;
+
   setAwakenedSnapshot: (rows: AwakenedRow[]) => void;
   markAwakened: (row: AwakenedRow) => void;
   setAgentMode: (on: boolean) => void;
@@ -289,6 +303,21 @@ export const useCity = create<CityState>((set, get) => ({
     set((s) => ({ zombieSet: new Set(ids), zombieVersion: s.zombieVersion + 1 })),
   setLegendary: (rows) => set({ legendary: rows }),
   setHistoryStats: (stats) => set({ historyStats: stats }),
+
+  listedSet: new Set(),
+  listedPrice: new Map(),
+  marketVersion: 0,
+  market: null,
+  setMarket: (summary, items) =>
+    set((s) => {
+      const listedSet = new Set<number>();
+      const listedPrice = new Map<number, number>();
+      for (const it of items) {
+        listedSet.add(it.id);
+        if (it.priceEth != null) listedPrice.set(it.id, it.priceEth);
+      }
+      return { market: summary, listedSet, listedPrice, marketVersion: s.marketVersion + 1 };
+    }),
 
   viewMode: "orbit",
   setViewMode: (mode) => set({ viewMode: mode }),
