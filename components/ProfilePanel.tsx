@@ -19,6 +19,9 @@ import type {
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
+// Normies ERC-721 contract — used to build the OpenSea item URL for listings.
+const NORMIES_CONTRACT = "0x9eb6e2025b64f340691e424b7fe7022ffde12438";
+
 export default function ProfilePanel() {
   const selection = useCity((s) => s.selection);
   if (!selection) return null;
@@ -140,6 +143,8 @@ function NormiePanel({ tokenId }: { tokenId: number }) {
   const isAwakened = useCity((s) => s.awakenedSet.has(tokenId));
   const openChat = useCity((s) => s.openChat);
   const awakenedName = useCity((s) => s.awakenedAgents.get(tokenId)?.name);
+  const listed = useCity((s) => s.listedSet.has(tokenId));
+  const listPrice = useCity((s) => s.listedPrice.get(tokenId));
   const compact = traits?.[tokenId];
 
   // refreshInterval lets every SWR consumer in this panel automatically
@@ -235,6 +240,21 @@ function NormiePanel({ tokenId }: { tokenId: number }) {
       )}
 
       {meta && <div className="mt-3 truncate text-[10px] opacity-60">{meta.name}</div>}
+
+      {listed && (
+        <a
+          href={`https://opensea.io/item/ethereum/${NORMIES_CONTRACT}/${tokenId}`}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 flex items-center justify-between bg-on px-2 py-1.5 text-[10px] tracking-widest text-off hover:bg-ink"
+          title="View this Normie's live OpenSea listing"
+        >
+          <span className="opacity-70">🏷️ LISTED · OPENSEA</span>
+          <span className="tabular-nums">
+            {listPrice != null ? `Ξ ${listPrice}` : "VIEW →"}
+          </span>
+        </a>
+      )}
 
       {isAwakened ? (
         <>
