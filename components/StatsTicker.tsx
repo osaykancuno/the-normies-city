@@ -12,9 +12,10 @@ export default function StatsTicker() {
 
   return (
     <div className="pointer-events-auto flex gap-1 text-[10px] tracking-wide">
-      <Stat label="BURN COMMITS" value={data?.totalBurnCommitments} />
       <Stat label="TOKENS BURNED" value={data?.totalBurnedTokens} />
       <Stat label="TRANSFORMS" value={data?.totalTransforms} />
+      <Stat label="ZOMBIES" value={data?.totalZombies} />
+      <Stat label="LEGENDARY" value={data?.totalLegendaryCanvases} />
       <Stat label="ACTION POINTS" value={data?.totalActionPointsDistributed} />
     </div>
   );

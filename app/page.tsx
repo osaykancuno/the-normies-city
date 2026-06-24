@@ -8,12 +8,14 @@ import MiniMap from "@/components/MiniMap";
 import StreetEntryModal from "@/components/StreetEntryModal";
 import AgentChat from "@/components/AgentChat";
 import VoiceController from "@/components/VoiceController";
+import OnchainExtras from "@/components/OnchainExtras";
 import WalkTouchControls from "@/components/WalkTouchControls";
 
 export default function Home() {
   return (
     <main data-city className="relative h-screen w-screen overflow-hidden">
       <CityClient />
+      <OnchainExtras />
 
       <CityHeader />
 

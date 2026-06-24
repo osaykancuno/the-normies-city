@@ -4,7 +4,7 @@
 // rise / collapse of their building.
 
 import { create } from "zustand";
-import type { ActivityEvent, AwakenedRow, HolderState, NormieCompact } from "./types";
+import type { ActivityEvent, AwakenedRow, HistoryStats, HolderState, NormieCompact } from "./types";
 import type { Building, HolderBuilding } from "./layout";
 import { computeLayout } from "./layout";
 
@@ -142,6 +142,19 @@ interface CityState {
    *  without having to subscribe to the Set/Map references. */
   awakenedVersion: number;
 
+  // ---------- zombies + legendary canvas + collection stats ----------
+  /** Token IDs converted to zombies (revealed, not cancelled). */
+  zombieSet: Set<number>;
+  /** Bumped on zombie-set change, like awakenedVersion. */
+  zombieVersion: number;
+  /** Legendary Canvas roster — tokenId + the artist who painted it. */
+  legendary: { tokenId: number; artist: string }[];
+  /** Indexer summary counts (burns, transforms, zombies, legendary, AP). */
+  historyStats: HistoryStats | null;
+  setZombies: (ids: number[]) => void;
+  setLegendary: (rows: { tokenId: number; artist: string }[]) => void;
+  setHistoryStats: (s: HistoryStats | null) => void;
+
   setAwakenedSnapshot: (rows: AwakenedRow[]) => void;
   markAwakened: (row: AwakenedRow) => void;
   setAgentMode: (on: boolean) => void;
@@ -267,6 +280,15 @@ export const useCity = create<CityState>((set, get) => ({
   nameIndex: new Map(),
   agentMode: false,
   awakenedVersion: 0,
+
+  zombieSet: new Set(),
+  zombieVersion: 0,
+  legendary: [],
+  historyStats: null,
+  setZombies: (ids) =>
+    set((s) => ({ zombieSet: new Set(ids), zombieVersion: s.zombieVersion + 1 })),
+  setLegendary: (rows) => set({ legendary: rows }),
+  setHistoryStats: (stats) => set({ historyStats: stats }),
 
   viewMode: "orbit",
   setViewMode: (mode) => set({ viewMode: mode }),

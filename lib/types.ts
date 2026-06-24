@@ -53,6 +53,25 @@ export interface HistoryStats {
   totalBurnedTokens: number;
   totalTransforms: number;
   totalActionPointsDistributed: string;
+  totalTokenData?: number;
+  totalZombies?: number;
+  totalLegendaryCanvases?: number;
+}
+
+/** One entry from GET /legendary-canvas — a Normie elevated to a Legendary
+ *  Canvas, with the artist who painted it. */
+export interface LegendaryCanvas {
+  tokenId: string;
+  isLegendary: boolean;
+  artistName: string;
+}
+
+/** One row from GET /zombies/conversions. A token is a live zombie when
+ *  `revealed` is true and `cancelled` is false. */
+export interface ZombieConversion {
+  tokenId: string;
+  revealed: boolean;
+  cancelled: boolean;
 }
 
 export interface CanvasStatus {

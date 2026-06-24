@@ -23,6 +23,9 @@ export default function Monuments() {
   const burned = useCity((s) => s.burned);
   const awakenedSet = useCity((s) => s.awakenedSet);
   const awakenedVersion = useCity((s) => s.awakenedVersion);
+  const zombieSet = useCity((s) => s.zombieSet);
+  const zombieVersion = useCity((s) => s.zombieVersion);
+  const legendary = useCity((s) => s.legendary);
   const setSelection = useCity((s) => s.setSelection);
   const openChat = useCity((s) => s.openChat);
 
@@ -35,6 +38,16 @@ export default function Monuments() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [awakenedVersion],
   );
+  const zombieIds = useMemo(
+    () => Array.from(zombieSet).sort((a, b) => a - b),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [zombieVersion],
+  );
+  const legendaryIds = useMemo(() => legendary.map((l) => l.tokenId), [legendary]);
+  const artistList = useMemo(() => {
+    const names = Array.from(new Set(legendary.map((l) => l.artist).filter(Boolean)));
+    return names.slice(0, 4).join(" · ");
+  }, [legendary]);
 
   const atlas = useAtlas();
 
@@ -61,6 +74,34 @@ export default function Monuments() {
         title="HALL OF THE AWAKENED"
         subtitle={`${awakenedIds.length.toLocaleString()} agents`}
         onPick={(id) => openChat(id)}
+      />
+      {/* Legendary Canvas gallery — east edge, facing the plaza centre. */}
+      <FaceWall
+        ids={legendaryIds}
+        atlas={atlas}
+        position={[430, 0, 0]}
+        rotationY={-Math.PI / 2}
+        dim={1.0}
+        glow={0.22}
+        title="LEGENDARY CANVAS"
+        subtitle={
+          legendaryIds.length
+            ? `${legendaryIds.length} by ${artistList}`
+            : "—"
+        }
+        onPick={(id) => setSelection({ kind: "normie", tokenId: id })}
+      />
+      {/* Zombie Lot — west edge, dim/eerie. */}
+      <FaceWall
+        ids={zombieIds}
+        atlas={atlas}
+        position={[-430, 0, 0]}
+        rotationY={Math.PI / 2}
+        dim={0.62}
+        glow={0}
+        title="ZOMBIE LOT"
+        subtitle={`${zombieIds.length.toLocaleString()} turned`}
+        onPick={(id) => setSelection({ kind: "normie", tokenId: id })}
       />
     </group>
   );

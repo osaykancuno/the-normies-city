@@ -115,8 +115,8 @@ export default function MiniMap() {
       // Monument markers — edge-clamped waypoints so they always point you to
       // the Burn Memorial (south, z=+430) and Hall of the Awakened (north,
       // z=-430), even when off the local view.
-      const drawMon = (wz: number, label: string) => {
-        const dx = 0 - px;
+      const drawMon = (wx: number, wz: number, label: string) => {
+        const dx = wx - px;
         const dz = wz - pz;
         const sx = dx * SCALE;
         const sz = dz * SCALE;
@@ -142,8 +142,10 @@ export default function MiniMap() {
         g.textBaseline = "middle";
         g.fillText(label, X, Y + 0.5);
       };
-      drawMon(430, "B"); // Burn Memorial
-      drawMon(-430, "A"); // Hall of the Awakened
+      drawMon(0, 430, "B"); // Burn Memorial (south)
+      drawMon(0, -430, "A"); // Hall of the Awakened (north)
+      drawMon(430, 0, "L"); // Legendary Canvas (east)
+      drawMon(-430, 0, "Z"); // Zombie Lot (west)
 
       // Player — fixed arrow at centre, always pointing up.
       g.fillStyle = "#ffffff";

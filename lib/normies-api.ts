@@ -19,8 +19,10 @@ import type {
   CanvasStatus,
   HistoryStats,
   HolderInfo,
+  LegendaryCanvas,
   NormieMetadata,
   NormieVersion,
+  ZombieConversion,
 } from "./types";
 
 export const BASE = process.env.NORMIES_API_BASE || "https://api.normies.art";
@@ -42,6 +44,8 @@ export async function getWithFreshness<T>(
 
 export const fetchStats = () => get<HistoryStats>("/history/stats", 15);
 export const fetchCanvasStatus = () => get<CanvasStatus>("/canvas/status", 30);
+export const fetchLegendaryCanvas = () => get<LegendaryCanvas[]>("/legendary-canvas", 60);
+export const fetchZombieConversions = () => get<ZombieConversion[]>("/zombies/conversions", 30);
 
 export const fetchNormieMetadata = (id: number) =>
   get<NormieMetadata>(`/normie/${id}/metadata`, 60);
