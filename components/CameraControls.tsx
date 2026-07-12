@@ -12,10 +12,12 @@ import WalkControls from "./WalkControls";
 // Keep the orbit camera inside the city. The user can roam freely but never
 // orbits out past the city limit — gives the feeling of "always inside".
 const CAMERA_MIN_DISTANCE = 140;
-const CAMERA_MAX_DISTANCE = CITY_OUTER_RADIUS * 1.05;
-// On phones the viewport is tiny, so let the camera pull much further back to
-// frame the whole city at once.
-const CAMERA_MAX_DISTANCE_MOBILE = CITY_OUTER_RADIUS * 1.9;
+// Cap the pull-back so the city always fills the frame — just past the city edge
+// (you see a rim of sea + yachts at the horizon) without drifting off into the
+// void. Phones get a little more room to frame the whole skyline, but far less
+// than before to avoid feeling detached from the scene.
+const CAMERA_MAX_DISTANCE = CITY_OUTER_RADIUS * 1.08;
+const CAMERA_MAX_DISTANCE_MOBILE = CITY_OUTER_RADIUS * 1.35;
 
 export default function CameraControls() {
   const viewMode = useCity((s) => s.viewMode);

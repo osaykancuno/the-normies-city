@@ -10,6 +10,7 @@ import InstancedNormies from "./InstancedNormies";
 import AwakenedAntennas from "./AwakenedAntennas";
 import Streets from "./Streets";
 import Sidewalks from "./Sidewalks";
+import Sea from "./Sea";
 import StreetLamps from "./StreetLamps";
 import CityProps from "./CityProps";
 import Monuments from "./Monuments";
@@ -140,6 +141,7 @@ export default function City() {
         color={BRAND_OFF}
       />
       <Ground />
+      <Sea />
       <Streets />
       {buildings.length > 0 && <Sidewalks />}
       {buildings.length > 0 && <StreetLamps />}
