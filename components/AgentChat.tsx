@@ -33,10 +33,22 @@ export default function AgentChat() {
   const buildingsByAddress = useCity((s) => s.buildingsByAddress);
   const burned = useCity((s) => s.burned);
   const awakenedSet = useCity((s) => s.awakenedSet);
+  const zombieSet = useCity((s) => s.zombieSet);
+  const legendary = useCity((s) => s.legendary);
+  const historyStats = useCity((s) => s.historyStats);
+  const listedSet = useCity((s) => s.listedSet);
+  const listedPrice = useCity((s) => s.listedPrice);
+  const market = useCity((s) => s.market);
   const ctx = useMemo<DialogueContext>(() => {
     const out: DialogueContext = {};
     if (burned?.size) out.totalBurned = burned.size;
     if (awakenedSet?.size) out.totalAwakened = awakenedSet.size;
+    if (zombieSet?.size) out.totalZombies = zombieSet.size;
+    if (legendary?.length) out.totalLegendary = legendary.length;
+    if (historyStats?.totalTransforms) out.totalTransforms = historyStats.totalTransforms;
+    if (historyStats?.totalActionPointsDistributed)
+      out.actionPoints = historyStats.totalActionPointsDistributed;
+    if (market?.floor != null) out.floorPrice = market.floor;
     let holderCount = 0;
     let live = 0;
     for (const b of buildings) {
@@ -54,8 +66,26 @@ export default function AgentChat() {
         out.ownerRank = b.rank + 1; // store rank is 0-based (0 = biggest)
       }
     }
+    if (tokenId != null) {
+      out.selfZombie = zombieSet.has(tokenId);
+      out.selfLegendaryArtist = legendary.find((l) => l.tokenId === tokenId)?.artist ?? null;
+      out.selfListedPrice = listedPrice.get(tokenId) ?? null;
+    }
     return out;
-  }, [tokenId, holders, buildings, buildingsByAddress, burned, awakenedSet]);
+  }, [
+    tokenId,
+    holders,
+    buildings,
+    buildingsByAddress,
+    burned,
+    awakenedSet,
+    zombieSet,
+    legendary,
+    historyStats,
+    listedSet,
+    listedPrice,
+    market,
+  ]);
 
   const { data: info } = useSWR<AgentInfo>(
     tokenId != null ? `/api/agents/${tokenId}` : null,

@@ -166,6 +166,11 @@ function NormiePanel({ tokenId }: { tokenId: number }) {
     fetcher,
     { refreshInterval: 60_000, revalidateOnFocus: true, revalidateOnReconnect: true },
   );
+  const { data: rarity } = useSWR<{ rank?: number; score?: number }>(
+    `/api/rarity/${tokenId}`,
+    fetcher,
+    { refreshInterval: 60_000 },
+  );
 
   const customized = compact?.customized || canvas?.info?.customized;
   const hasVersions = Array.isArray(versions) && versions.length > 0;
@@ -207,6 +212,16 @@ function NormiePanel({ tokenId }: { tokenId: number }) {
           <Trait k="AP" v={compact.actionPoints} />
           <Trait k="CANVAS" v={customized ? "Yes" : "No"} />
         </dl>
+      )}
+
+      {rarity?.rank != null && (
+        <div className="mt-2 flex items-center justify-between bg-ink/40 px-2 py-1 text-[10px] tracking-widest">
+          <span className="opacity-70">⭐ RARITY</span>
+          <span className="tabular-nums">
+            RANK #{rarity.rank.toLocaleString()}
+            {rarity.score != null ? ` · ${rarity.score.toFixed(1)}` : ""}
+          </span>
+        </div>
       )}
 
       {customized && canvas?.diff && (canvas.diff.addedCount || canvas.diff.removedCount) ? (

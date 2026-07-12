@@ -22,6 +22,7 @@ import type {
   LegendaryCanvas,
   NormieMetadata,
   NormieVersion,
+  RarityDetail,
   RarityListedItem,
   RarityStats,
   ZombieConversion,
@@ -49,6 +50,7 @@ export const fetchCanvasStatus = () => get<CanvasStatus>("/canvas/status", 30);
 export const fetchLegendaryCanvas = () => get<LegendaryCanvas[]>("/legendary-canvas", 60);
 export const fetchZombieConversions = () => get<ZombieConversion[]>("/zombies/conversions", 30);
 export const fetchRarityStats = () => get<RarityStats>("/rarity/stats", 15);
+export const fetchRarityNormie = (id: number) => get<RarityDetail>(`/rarity/normie/${id}`, 15);
 export const fetchListedNormies = (page: number, limit = 100) =>
   get<{ items: RarityListedItem[] }>(
     `/rarity/normies?listed=1&sort=price&order=asc&page=${page}&limit=${limit}`,

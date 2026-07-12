@@ -82,6 +82,15 @@ export interface RarityListedItem {
   listing?: { tokenId: number; priceEth: number; currency: string; url: string };
 }
 
+/** Live rarity detail for one token (GET /rarity/normie/{id}). */
+export interface RarityDetail {
+  id: number;
+  rank: number;
+  rarityScore: number;
+  fairValue: number | null;
+  underpriced: boolean | null;
+}
+
 /** One row from GET /zombies/conversions. A token is a live zombie when
  *  `revealed` is true and `cancelled` is false. */
 export interface ZombieConversion {

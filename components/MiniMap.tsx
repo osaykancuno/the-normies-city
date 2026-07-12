@@ -26,18 +26,23 @@ const CULL2 = CULL * CULL;
 export default function MiniMap() {
   const viewMode = useCity((s) => s.viewMode);
   const buildings = useCity((s) => s.buildings);
+  const listedSet = useCity((s) => s.listedSet);
+  const marketVersion = useCity((s) => s.marketVersion);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const active = viewMode === "walk";
 
-  // Flat array of holder positions for fast per-frame culling.
-  const holders = useMemo(() => {
-    const out: number[] = [];
+  // Flat array of holder positions + a "holds a listed Normie" flag per building.
+  const { pts, listed } = useMemo(() => {
+    const p: number[] = [];
+    const l: number[] = [];
     for (const b of buildings) {
       if (b.kind !== "holder") continue;
-      out.push(b.x, b.z);
+      p.push(b.x, b.z);
+      l.push(b.tokenIds.some((id) => listedSet.has(id)) ? 1 : 0);
     }
-    return Float32Array.from(out);
-  }, [buildings]);
+    return { pts: Float32Array.from(p), listed: Uint8Array.from(l) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buildings, marketVersion]);
 
   useEffect(() => {
     if (!active) return;
@@ -74,16 +79,23 @@ export default function MiniMap() {
       g.clip();
 
       // Buildings (culled to the local view), rotated about the player.
-      g.fillStyle = "rgba(130,132,136,0.7)";
-      for (let i = 0; i < holders.length; i += 2) {
-        const dx = holders[i] - px;
-        const dz = holders[i + 1] - pz;
+      // Buildings holding a listed Normie are drawn gold + a touch bigger so the
+      // "market district" reads on the map.
+      for (let i = 0; i < pts.length; i += 2) {
+        const dx = pts[i] - px;
+        const dz = pts[i + 1] - pz;
         if (dx * dx + dz * dz > CULL2) continue;
         const sx = dx * SCALE;
         const sz = dz * SCALE;
         const mx = cx + (sx * cosR - sz * sinR);
         const my = cy + (sx * sinR + sz * cosR);
-        g.fillRect(mx - 1.4, my - 1.4, 2.8, 2.8);
+        if (listed[i >> 1]) {
+          g.fillStyle = "#d9b25a";
+          g.fillRect(mx - 1.9, my - 1.9, 3.8, 3.8);
+        } else {
+          g.fillStyle = "rgba(130,132,136,0.7)";
+          g.fillRect(mx - 1.4, my - 1.4, 2.8, 2.8);
+        }
       }
 
       // Other Normies present.
@@ -181,7 +193,7 @@ export default function MiniMap() {
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [active, holders]);
+  }, [active, pts, listed]);
 
   if (!active) return null;
   return (

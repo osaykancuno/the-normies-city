@@ -33,6 +33,15 @@ export interface DialogueContext {
   liveSupply?: number; // un-burned Normies still on-chain
   totalBurned?: number; // Normies burned to date
   totalAwakened?: number; // ERC-8004 awakened agents to date
+  totalZombies?: number; // Normies converted to zombies
+  totalLegendary?: number; // Legendary Canvases minted
+  totalTransforms?: number; // Canvas transforms to date
+  actionPoints?: number | string; // total action points distributed
+  floorPrice?: number | null; // collection OpenSea floor (ETH)
+  // About THIS Normie specifically:
+  selfZombie?: boolean;
+  selfLegendaryArtist?: string | null;
+  selfListedPrice?: number | null;
 }
 
 /** Curated openers shown as tappable chips. */
@@ -51,6 +60,15 @@ export function suggestedQuestions(
   }
   qs.push({ id: "traits", label: "What are your traits?" });
   qs.push({ id: "rarity", label: "Are you rare?" });
+  if (ctx?.selfLegendaryArtist) {
+    qs.push({ id: "legendary", label: "Who painted you?" });
+  }
+  if (ctx?.selfZombie) {
+    qs.push({ id: "zombie", label: "Are you a zombie?" });
+  }
+  if (ctx?.selfListedPrice != null) {
+    qs.push({ id: "price", label: "Are you for sale?" });
+  }
   if (ctx?.ownerPortfolio != null) {
     qs.push({ id: "owner", label: "How big is your owner's wallet?" });
   }
@@ -82,6 +100,9 @@ type Intent =
   | "owner"
   | "supply"
   | "rank"
+  | "zombie"
+  | "legendary"
+  | "price"
   | "style"
   | "greet"
   | "help";
@@ -96,6 +117,9 @@ const INTENT_KEYWORDS: Record<Intent, string[]> = {
   owner: ["owner", "wallet", "holder", "portfolio", "hold", "owns", "own", "proprietario", "collector", "how big", "how many do you"],
   supply: ["supply", "left", "remaining", "alive", "total", "how many normies", "how many of you", "how many awakened", "quanti", "minted", "mint count"],
   rank: ["rank", "ranked", "position", "biggest", "top", "whale", "richest", "largest"],
+  zombie: ["zombie", "undead", "turned", "converted", "rotten", "brains"],
+  legendary: ["legendary", "artist", "masterpiece", "painted", "1/1", "one of one"],
+  price: ["price", "sale", "sell", "selling", "listed", "buy", "floor", "opensea", "cost", "for sale"],
   style: ["talk", "speak", "vibe", "personality", "how do you", "character", "feel"],
   greet: ["hi", "hello", "hey", "ciao", "yo", "gm", "sup"],
   help: ["help", "what can", "topics", "?", "options", "ask"],
@@ -107,6 +131,9 @@ function classify(question: string): Intent | null {
   // Priority order — more specific intents first.
   const order: Intent[] = [
     "canvas",
+    "zombie",
+    "legendary",
+    "price",
     "rank",
     "supply",
     "owner",
@@ -226,11 +253,50 @@ export function answer(
       if (ctx?.liveSupply != null) parts.push(`${nf(ctx.liveSupply)} of us are still on-chain`);
       if (ctx?.totalBurned != null) parts.push(`${nf(ctx.totalBurned)} have been burned`);
       if (ctx?.totalAwakened != null) parts.push(`${nf(ctx.totalAwakened)} have awakened as agents`);
+      if (ctx?.totalZombies != null) parts.push(`${nf(ctx.totalZombies)} turned zombie`);
+      if (ctx?.totalLegendary != null) parts.push(`${nf(ctx.totalLegendary)} became Legendary Canvases`);
       if (ctx?.totalHolders != null) parts.push(`across ${nf(ctx.totalHolders)} wallets`);
       if (parts.length) {
         return `${parts.join(", ")}. ${String(pick(info.quirks, seed + 7, "The collection shrinks as it burns — every count is live."))}`;
       }
       return `Our numbers shift with every burn and awakening — the live count is always on-chain.`;
+    }
+    case "zombie": {
+      if (ctx?.selfZombie) {
+        return (
+          `I've turned — I'm a zombie now, one of ${ctx.totalZombies != null ? nf(ctx.totalZombies) : "the"} ` +
+          `Normies converted. ${String(pick(info.quirks, seed + 8, "The rot is on-chain; there's no going back."))}`
+        );
+      }
+      return (
+        `Not me — I'm still flesh.${ctx?.totalZombies != null ? ` But ${nf(ctx.totalZombies)} of us have turned zombie.` : ""} ` +
+        `${String(pick(info.personalityTraits, seed + 8, "Conversion is a one-way commitment."))}`
+      ).trim();
+    }
+    case "legendary": {
+      if (ctx?.selfLegendaryArtist) {
+        return (
+          `I'm a Legendary Canvas — hand-painted by ${ctx.selfLegendaryArtist}.` +
+          `${ctx.totalLegendary != null ? ` Only ${nf(ctx.totalLegendary)} of us carry that honor.` : ""} ` +
+          `${String(pick(info.quirks, seed + 9, "An artist chose this file. That's on-chain forever."))}`
+        );
+      }
+      return (
+        `I'm not a Legendary Canvas.${ctx?.totalLegendary != null ? ` ${nf(ctx.totalLegendary)} Normies are — each one hand-painted by an artist.` : ""} ` +
+        `${String(pick(info.personalityTraits, seed + 9, "Rarity comes in many forms here."))}`
+      ).trim();
+    }
+    case "price": {
+      if (ctx?.selfListedPrice != null) {
+        return (
+          `I'm on the market — listed at Ξ${ctx.selfListedPrice} on OpenSea right now. ` +
+          `${String(pick(info.quirks, seed + 10, "Whether that's a fair price is your call."))}`
+        );
+      }
+      return (
+        `I'm not for sale right now.${ctx?.floorPrice != null ? ` The collection floor sits at Ξ${ctx.floorPrice}.` : ""} ` +
+        `${String(pick(info.personalityTraits, seed + 10, "Some of us aren't going anywhere."))}`
+      ).trim();
     }
     case "rarity": {
       const lvl = info.canvas?.level ?? 1;
